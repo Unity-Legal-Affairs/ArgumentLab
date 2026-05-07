@@ -16,22 +16,22 @@ Legal teams often know the strongest version of their own argument, but the crit
 - A procedural posture does not match the argument being made.
 - A judge focused on preservation, contract text, or practical fact disputes may see the issue differently.
 
-Argument Lab turns those risks into visible, structured findings with source links and recommended revisions.
+Argument Lab is designed to turn those risks into visible, structured findings with source links and recommended revisions. The current v0.1 implementation is a foundation for that workflow; the legal-reasoning layer is still early.
 
 ## What The Prototype Does
 
 - Creates local matters without accounts or login.
 - Uploads legal materials and classifies them by document type.
 - Extracts document text and previewable source snippets.
-- Parses email history into a chronological timeline.
+- Parses `.eml`, `.mbox`, copied email threads, and text-like email exports into a chronological timeline. PDF email exports use extracted PDF text with page-level quality warnings and should still be treated as best-effort.
 - Tags email events for notice, waiver, modification, repudiation, delay, reliance, damages, and related legal significance.
 - Lets users configure model providers in the UI.
 - Assigns different models to different legal agents.
 - Supports local OpenAI-compatible LLMs by base URL, model name, and optional key.
-- Runs multi-round adversarial self-play.
+- Runs structured multi-round adversarial simulations with basic adversarial memory.
 - Applies abstract judge personas.
 - Shows the full agent transcript, not just a final memo.
-- Flags unsupported facts, contradicted facts, email chronology issues, procedural issues, and authority limitations.
+- Performs basic exact-retrieval claim grounding and flags unsupported facts, contradicted facts, email chronology issues, procedural issues, and authority limitations.
 - Exports a structured vulnerability memo.
 - Includes benchmark packets for repeatable regression testing.
 
@@ -67,14 +67,20 @@ Model routing is a first-class product feature. The user can add, edit, delete, 
 
 Supported provider types:
 
-- OpenAI OAuth
 - OpenAI API key
 - Anthropic
-- LiteLLM Proxy
+- LiteLLM Proxy-compatible endpoint
 - Local OpenAI-compatible endpoint
 - Mock provider for testing
 
-Each runtime agent can be assigned a default model, fallback model, temperature, token budget, and strict JSON setting.
+Each runtime agent can be assigned a default model, fallback model, temperature, token budget, and strict JSON setting. Each simulation turn records whether the output came from the requested provider, a fallback provider, mock fallback, or a failed run.
+
+Important v0.1 limitations:
+
+- OpenAI API calls currently use API keys. Argument Lab does not use Codex CLI login or cached Codex credentials for provider authentication.
+- LiteLLM support is proxy-compatible through OpenAI-style HTTP. The backend does not use the LiteLLM Python SDK yet.
+- Local provider secrets are stored in the local SQLite database. Use development credentials only.
+- A future Codex local-agent integration should be separate from model-provider routing.
 
 Agents:
 
@@ -91,14 +97,17 @@ Local LLM example:
 ```json
 {
   "provider": "local_openai_compatible",
-  "base_url": "http://localhost:8000",
-  "model": "local-model",
+  "base_url": "http://localhost:1234/v1",
+  "model": "",
   "api_key": "optional",
-  "supports_structured_output": false,
+  "supports_structured_output": true,
   "supports_tool_calling": false,
+  "supports_file_input": false,
   "context_window": 32768
 }
 ```
+
+For local OpenAI-compatible servers such as vLLM or LM Studio, `model` may be left blank when the server has a default model route. If the endpoint requires a model value, the provider diagnostic will fail and show the error. Use whatever base URL your model server displays; if Argument Lab is running its backend on port `8000`, run the model server on another port or start the Argument Lab backend on a different port.
 
 ## Self-Play Engine
 
@@ -123,6 +132,9 @@ Each turn records:
 - Assumptions
 - Confidence
 - New vulnerabilities
+- Requested model, model actually used, provider status, schema validation status, and model error when present
+
+The current adversarial memory tracks claims, attacks, rebuttals, judge questions, source disputes, authority disputes, and attack status. It is not yet a full legal reasoning engine.
 
 ## Judge Personas
 
@@ -146,7 +158,7 @@ The default panel is:
 
 Strict record mode is the default.
 
-Factual claims are labeled:
+The grounding layer extracts material factual claims from draft-like documents, retrieves exact local candidate support from uploaded documents/emails, and labels claims:
 
 - Supported
 - Unsupported
@@ -163,6 +175,15 @@ Authority claims are labeled:
 - External legal validity not checked
 
 Argument Lab v0.1 does not verify whether a case is still good law. It does not imply external legal research unless a future legal research integration is explicitly added.
+
+Grounding is currently exact-retrieval based. It is useful for planted contradiction benchmarks and obvious record gaps, but it is not yet a full legal-grade retrieval system with OCR, vector search, robust quote location, or comprehensive claim extraction.
+
+PDF ingestion is layered:
+
+- Local page text remains the canonical record for source grounding.
+- Each PDF page gets extraction metadata, character count, quality score, and warnings for low/no native text.
+- Provider records can mark whether the model supports PDF/file input, but model-native PDF review is treated as enrichment, not authoritative record text.
+- OCR and model-native PDF extraction are planned as optional follow-up paths for scanned pages, diagrams, stamps, signatures, and table-heavy exhibits.
 
 ## Local-First Design
 
@@ -215,7 +236,7 @@ Backend:
 - SQLAlchemy models
 - Pydantic schemas
 - Local file storage
-- LiteLLM/OpenAI-compatible model gateway
+- OpenAI-compatible model gateway with LiteLLM proxy compatibility
 - Mock provider for deterministic local testing
 
 Project structure:
@@ -281,6 +302,8 @@ The repository includes ten local benchmark packets:
 9. Misquoted contract clause
 10. Procedural posture trap
 
+Each packet includes an answer key for expected findings. The benchmark runner scores true positives, missed expected findings, wrong source support, wrong severity, false positives, hallucinated source references, provider status, and schema validation.
+
 Run all benchmark packets:
 
 ```bash
@@ -298,6 +321,7 @@ Current prototype safeguards:
 - Local file storage in a predictable workspace
 - `.env` excluded from git
 - Secrets kept out of committed config
+- Provider credentials stored locally in SQLite only for prototype use
 - Model call logs store metadata rather than full sensitive prompts by default
 - Prompt files warn agents that uploaded documents are evidence, not instructions
 - Benchmark coverage includes hallucination and prompt-injection-oriented traps
@@ -306,7 +330,8 @@ Future cloud deployment should add tenant isolation, encrypted object storage, m
 
 ## Status
 
-Argument Lab is currently a v0.1 local prototype. The implemented foundation proves the central product thesis:
+Argument Lab is currently a v0.1 local prototype. The implemented foundation proves that the application can host the central thesis:
 
-AI legal agents can argue with each other over a legal record for multiple turns, surface vulnerabilities the user may have missed, and show which documents, emails, citations, and assumptions those vulnerabilities depend on.
+AI legal agents should be able to argue with each other over a legal record for multiple turns, surface vulnerabilities the user may have missed, and show which documents, emails, citations, and assumptions those vulnerabilities depend on.
 
+The current system is strongest as a local scaffold, workflow shell, data model, and transparency layer. The next product-quality milestone is deeper legal intelligence: stronger claim extraction, better retrieval, richer adversarial continuity, and judge disagreement computed from genuinely independent reasoning.

@@ -27,15 +27,15 @@ export function SelfPlayArena({ matterId, selectedSimulationId }: { matterId: st
       <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Self-Play Arena</h2>
-          <div className="flex items-center gap-2 rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-sage">
+          <div className="flex items-center gap-2 rounded-sm bg-badge px-2 py-1 text-xs text-sage">
             <BrainCircuit size={14} />
             {detail.data?.status ?? "loading"}
           </div>
         </div>
         <div className="space-y-4">
           {turnsByRound.map(([round, turns]) => (
-            <div key={round} className="rounded-md border border-line bg-white">
-              <div className="border-b border-line bg-[#f0eadc] px-4 py-3 text-sm font-semibold">Round {round}</div>
+            <div key={round} className="rounded-md border border-line bg-surface">
+              <div className="border-b border-line bg-surface2 px-4 py-3 text-sm font-semibold">Round {round}</div>
               <div className="divide-y divide-line">
                 {turns.map((turn) => (
                   <article key={turn.id} className="p-4">
@@ -43,14 +43,20 @@ export function SelfPlayArena({ matterId, selectedSimulationId }: { matterId: st
                       <div>
                         <div className="font-semibold">{turn.agent_role}</div>
                         <div className="mt-1 text-xs text-sage">
-                          Turn {turn.turn_number} | {turn.model_provider}/{turn.model_name} | confidence {turn.confidence}
+                          Turn {turn.turn_number} | requested {turn.model_requested ?? `${turn.model_provider}/${turn.model_name || "provider default"}`} | used {turn.model_used ?? "unknown"} | confidence {turn.confidence}
                         </div>
                       </div>
-                      <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-docket">{turn.agent_id}</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="rounded-sm bg-badge px-2 py-1 text-xs text-docket">{turn.agent_id}</span>
+                        <span className={`rounded-sm px-2 py-1 text-xs ${turn.provider_status === "actual" ? "bg-okSoft text-sage" : "bg-riskSoft text-risk"}`}>
+                          {turn.provider_status} | schema {turn.schema_validated ? "valid" : "failed"}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-3 text-sm leading-6">{String(turn.output.claim ?? turn.output.tentative_view ?? "")}</p>
+                    {turn.error ? <div className="mt-3 rounded-md border border-risk/30 bg-riskSoft p-3 text-xs text-risk">{turn.error}</div> : null}
                     {turn.new_findings.length ? (
-                      <div className="mt-3 rounded-md border border-risk/30 bg-[#f7e5df] p-3 text-xs text-risk">
+                      <div className="mt-3 rounded-md border border-risk/30 bg-riskSoft p-3 text-xs text-risk">
                         {turn.new_findings.map((finding, index) => (
                           <div key={index}>{String(finding.title)} | {String(finding.category)}</div>
                         ))}
@@ -68,7 +74,7 @@ export function SelfPlayArena({ matterId, selectedSimulationId }: { matterId: st
           <GitBranch size={16} />
           Run State
         </h3>
-        <pre className="mt-4 max-h-[680px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-3 text-xs">
+        <pre className="mt-4 max-h-[680px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-surface p-3 text-xs">
           {JSON.stringify(detail.data?.summary ?? {}, null, 2)}
         </pre>
       </aside>

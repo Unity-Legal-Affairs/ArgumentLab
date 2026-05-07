@@ -27,7 +27,7 @@ ProviderType = Literal[
     "mock",
 ]
 
-AuthMethod = Literal["none", "oauth_pkce", "api_key", "bearer_token", "dummy"]
+AuthMethod = Literal["none", "api_key", "bearer_token", "dummy"]
 Confidence = Literal["low", "medium", "high"]
 Severity = Literal["low", "medium", "high", "critical"]
 
@@ -108,13 +108,14 @@ class ProviderCreate(BaseModel):
     display_name: str
     provider_type: ProviderType
     base_url: str | None = None
-    model_name: str
+    model_name: str = ""
     auth_method: AuthMethod = "none"
     api_key: str | None = None
     token_reference: str | None = None
     context_window: int | None = None
     supports_structured_output: bool | None = None
     supports_tool_calling: bool | None = None
+    supports_file_input: bool | None = None
     max_cost_per_run: float | None = None
     enabled: bool = True
 
@@ -130,12 +131,13 @@ class ProviderRead(BaseModel):
     display_name: str
     provider_type: ProviderType
     base_url: str | None = None
-    model_name: str
+    model_name: str = ""
     auth_method: AuthMethod
     token_reference: str | None = None
     context_window: int | None = None
     supports_structured_output: bool | None = None
     supports_tool_calling: bool | None = None
+    supports_file_input: bool | None = None
     max_cost_per_run: float | None = None
     enabled: bool
     last_error: str | None = None
@@ -234,6 +236,11 @@ class SimulationTurnRead(BaseModel):
     agent_role: str
     model_provider: str | None = None
     model_name: str | None = None
+    model_requested: str | None = None
+    model_used: str | None = None
+    provider_status: str = "unknown"
+    schema_validated: bool = False
+    error: str | None = None
     input_refs: list[dict[str, Any]] = []
     output: dict[str, Any] = {}
     claims_made: list[dict[str, Any]] = []
@@ -339,4 +346,3 @@ class BenchmarkRunResult(BaseModel):
     matter_id: str
     simulation_id: str
     metrics: dict[str, Any]
-

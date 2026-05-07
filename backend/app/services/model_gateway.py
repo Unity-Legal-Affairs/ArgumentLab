@@ -42,7 +42,13 @@ class ModelGateway:
             return ModelCallResult(ok=False, content="", error="Provider is disabled.")
 
         try:
-            if provider.provider_type in {"openai_api_key", "openai_oauth", "litellm_proxy", "local_openai_compatible"}:
+            if provider.provider_type == "openai_oauth":
+                return ModelCallResult(
+                    ok=False,
+                    content="",
+                    error="OpenAI OAuth is not implemented in this local prototype. Use an OpenAI API key provider, or implement a first-party OAuth flow later.",
+                )
+            if provider.provider_type in {"openai_api_key", "litellm_proxy", "local_openai_compatible"}:
                 return await self.openai_compatible(provider, messages, temperature, max_tokens, strict_json)
             if provider.provider_type == "anthropic":
                 return await self.anthropic(provider, messages, temperature, max_tokens)
@@ -66,11 +72,14 @@ class ModelGateway:
         elif provider.provider_type == "local_openai_compatible":
             headers["Authorization"] = "Bearer local"
         body: dict[str, Any] = {
-            "model": provider.model_name,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        if provider.model_name:
+            body["model"] = provider.model_name
+        elif provider.provider_type == "openai_api_key":
+            return ModelCallResult(ok=False, content="", error="OpenAI API key providers require a model name.")
         if strict_json and provider.supports_structured_output:
             body["response_format"] = {"type": "json_object"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -96,6 +105,8 @@ class ModelGateway:
             headers["x-api-key"] = provider.api_key
         system = "\n".join(message["content"] for message in messages if message["role"] == "system")
         user_messages = [message for message in messages if message["role"] != "system"]
+        if not provider.model_name:
+            return ModelCallResult(ok=False, content="", error="Anthropic providers require a model name.")
         body = {
             "model": provider.model_name,
             "max_tokens": max_tokens,
@@ -193,4 +204,3 @@ def parse_json_object(content: str) -> dict[str, Any] | None:
 def safe_raw(payload: dict[str, Any]) -> dict[str, Any]:
     usage = payload.get("usage") if isinstance(payload, dict) else None
     return {"usage": usage} if usage else {}
-

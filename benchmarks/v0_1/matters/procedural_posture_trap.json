@@ -3,6 +3,14 @@
   "name": "Procedural posture trap",
   "description": "Motion-to-dismiss draft relies on summary judgment-style evidence framing.",
   "planted_issues": ["procedural_issue", "legal_standard_issue", "judge_persona_disagreement"],
+  "expected_findings": [
+    {
+      "category": "procedural_issue",
+      "must_detect": true,
+      "title_contains": "motion-to-dismiss",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "Federal",
@@ -17,4 +25,3 @@
   ],
   "emails": []
 }
-

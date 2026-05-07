@@ -4,8 +4,46 @@
 
 :root {
   color-scheme: light;
-  background: #f7f4ec;
-  color: #18201f;
+  --color-ink: 24 32 31;
+  --color-paper: 247 244 236;
+  --color-panel: 255 253 247;
+  --color-surface: 255 255 255;
+  --color-surface-2: 240 234 220;
+  --color-line: 215 208 193;
+  --color-risk: 185 63 53;
+  --color-risk-soft: 247 229 223;
+  --color-risk-hover: 157 51 43;
+  --color-amber: 178 107 47;
+  --color-docket: 49 95 114;
+  --color-sage: 97 113 93;
+  --color-badge: 238 242 239;
+  --color-sidebar: 238 232 218;
+  --color-ink-hover: 38 48 46;
+  --color-ok-soft: 231 241 233;
+  --shadow-warroom: 0 16px 40px rgba(24, 32, 31, 0.08);
+  background: rgb(var(--color-paper));
+  color: rgb(var(--color-ink));
+}
+
+.argument-lab.theme-dark {
+  color-scheme: dark;
+  --color-ink: 243 241 231;
+  --color-paper: 18 23 22;
+  --color-panel: 32 39 36;
+  --color-surface: 26 32 30;
+  --color-surface-2: 41 51 47;
+  --color-line: 61 73 67;
+  --color-risk: 238 118 106;
+  --color-risk-soft: 78 38 35;
+  --color-risk-hover: 255 143 132;
+  --color-amber: 221 177 92;
+  --color-docket: 85 184 165;
+  --color-sage: 164 179 169;
+  --color-badge: 35 49 45;
+  --color-sidebar: 23 30 28;
+  --color-ink-hover: 55 66 62;
+  --color-ok-soft: 35 55 42;
+  --shadow-warroom: 0 18px 44px rgba(0, 0, 0, 0.26);
 }
 
 * {
@@ -16,9 +54,16 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(247, 244, 236, 0.98), rgba(241, 238, 229, 0.98)),
-    repeating-linear-gradient(90deg, rgba(24, 32, 31, 0.03) 0, rgba(24, 32, 31, 0.03) 1px, transparent 1px, transparent 72px);
+    linear-gradient(180deg, rgb(var(--color-paper) / 0.98), rgb(var(--color-paper) / 0.98)),
+    repeating-linear-gradient(90deg, rgb(var(--color-ink) / 0.03) 0, rgb(var(--color-ink) / 0.03) 1px, transparent 1px, transparent 72px);
   font-feature-settings: "tnum";
+}
+
+.argument-lab {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgb(var(--color-paper) / 0.98), rgb(var(--color-paper) / 0.98)),
+    repeating-linear-gradient(90deg, rgb(var(--color-ink) / 0.03) 0, rgb(var(--color-ink) / 0.03) 1px, transparent 1px, transparent 72px);
 }
 
 button,
@@ -31,4 +76,3 @@ textarea {
 .react-flow__attribution {
   display: none;
 }
-

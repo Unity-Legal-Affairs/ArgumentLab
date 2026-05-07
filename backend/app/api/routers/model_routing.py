@@ -29,7 +29,7 @@ def list_providers(db: Session = Depends(get_db)) -> list[ProviderRead]:
 
 @router.post("/providers", response_model=ProviderRead)
 def create_provider(payload: ProviderCreate, db: Session = Depends(get_db)) -> ProviderRead:
-    provider = Provider(**payload.model_dump())
+    provider = Provider(**normalized_provider_payload(payload))
     db.add(provider)
     db.commit()
     db.refresh(provider)
@@ -41,7 +41,7 @@ def update_provider(provider_id: str, payload: ProviderUpdate, db: Session = Dep
     provider = db.get(Provider, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
-    for key, value in payload.model_dump().items():
+    for key, value in normalized_provider_payload(payload).items():
         setattr(provider, key, value)
     db.commit()
     db.refresh(provider)
@@ -104,3 +104,8 @@ def provider_read(provider: Provider) -> ProviderRead:
     data["has_secret"] = bool(provider.api_key)
     return ProviderRead(**data)
 
+
+def normalized_provider_payload(payload: ProviderCreate | ProviderUpdate) -> dict:
+    data = payload.model_dump()
+    data["model_name"] = (data.get("model_name") or "").strip()
+    return data

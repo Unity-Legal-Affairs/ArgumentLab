@@ -49,6 +49,8 @@ def extract_pdf(path: Path) -> str:
         text = page.extract_text() or ""
         if text.strip():
             pages.append(f"[page {index}]\n{text}")
+        else:
+            pages.append(f"[page {index}]\n[no extractable text; OCR or model-native PDF review recommended]")
     return "\n\n".join(pages)
 
 
@@ -84,13 +86,53 @@ def create_source_refs(text: str) -> list[dict]:
     refs: list[dict] = []
     page_matches = list(re.finditer(r"\[page\s+(\d+)\]", text, re.IGNORECASE))
     if page_matches:
+        text_pages = 0
+        low_text_pages = 0
         for idx, match in enumerate(page_matches):
             next_start = page_matches[idx + 1].start() if idx + 1 < len(page_matches) else len(text)
             snippet = text[match.end() : min(match.end() + 700, next_start)].strip()
-            refs.append({"page": int(match.group(1)), "quote": snippet[:500]})
+            char_count = len(snippet)
+            is_warning = "no extractable text" in snippet.lower()
+            if char_count > 120 and not is_warning:
+                text_pages += 1
+            else:
+                low_text_pages += 1
+            refs.append(
+                {
+                    "page": int(match.group(1)),
+                    "quote": snippet[:500],
+                    "extraction_method": "native_pdf_text",
+                    "char_count": char_count,
+                    "quality_score": page_quality_score(snippet),
+                    "warnings": ["low_or_no_native_text"] if is_warning or char_count < 120 else [],
+                }
+            )
+        refs.append(
+            {
+                "source_type": "extraction_quality",
+                "page": None,
+                "quote": "",
+                "page_count": len(page_matches),
+                "native_text_pages": text_pages,
+                "low_text_pages": low_text_pages,
+                "warnings": ["ocr_or_model_native_review_recommended"] if low_text_pages else [],
+            }
+        )
     elif text.strip():
-        refs.append({"page": None, "quote": text.strip()[:500]})
+        refs.append({"page": None, "quote": text.strip()[:500], "extraction_method": "plain_text", "char_count": len(text.strip()), "quality_score": page_quality_score(text)})
+    if len(refs) > 25 and refs[-1].get("source_type") == "extraction_quality":
+        return refs[:24] + [refs[-1]]
     return refs[:25]
+
+
+def page_quality_score(text: str) -> float:
+    stripped = text.strip()
+    if not stripped or "no extractable text" in stripped.lower():
+        return 0.0
+    alnum = sum(1 for char in stripped if char.isalnum())
+    density = alnum / max(len(stripped), 1)
+    length_score = min(len(stripped) / 1200, 1.0)
+    return round(max(0.0, min((density * 0.6) + (length_score * 0.4), 1.0)), 3)
 
 
 def find_citations(text: str) -> list[str]:
@@ -112,4 +154,3 @@ def find_citations(text: str) -> list[str]:
             seen.add(clean)
             unique.append(clean)
     return unique[:50]
-

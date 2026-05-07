@@ -9,7 +9,6 @@ import { Button } from "./ui/button";
 import { Checkbox, Input, Label, Select } from "./ui/field";
 
 const providerTypes = [
-  ["openai_oauth", "OpenAI OAuth"],
   ["openai_api_key", "OpenAI API key"],
   ["anthropic", "Anthropic"],
   ["litellm_proxy", "LiteLLM Proxy"],
@@ -17,19 +16,20 @@ const providerTypes = [
   ["mock", "Mock provider"]
 ];
 
-const authMethods = ["none", "oauth_pkce", "api_key", "bearer_token", "dummy"];
+const authMethods = ["none", "api_key", "bearer_token", "dummy"];
 
 const blankProvider = {
-  display_name: "Local OpenAI-compatible",
+  display_name: "",
   provider_type: "local_openai_compatible",
-  base_url: "http://localhost:8000",
-  model_name: "local-model",
+  base_url: "",
+  model_name: "",
   auth_method: "dummy",
   api_key: "",
   token_reference: "",
   context_window: 32768,
-  supports_structured_output: false,
+  supports_structured_output: true,
   supports_tool_calling: false,
+  supports_file_input: false,
   max_cost_per_run: 5,
   enabled: true
 };
@@ -39,12 +39,14 @@ export function ModelRouting() {
   const providers = useQuery({ queryKey: ["providers"], queryFn: api.providers });
   const routes = useQuery({ queryKey: ["agent-routing"], queryFn: api.agentRouting });
   const [editing, setEditing] = useState<Partial<Provider> & { api_key?: string | null }>(blankProvider);
+  const [formMode, setFormMode] = useState<"new" | "edit">("new");
   const [diagnostic, setDiagnostic] = useState<Record<string, unknown> | null>(null);
 
   const saveProvider = useMutation({
     mutationFn: () => (editing.id ? api.updateProvider(editing.id, normalizeProviderPayload(editing)) : api.createProvider(normalizeProviderPayload(editing))),
     onSuccess: async () => {
       setEditing(blankProvider);
+      setFormMode("new");
       await qc.invalidateQueries({ queryKey: ["providers"] });
     }
   });
@@ -60,6 +62,12 @@ export function ModelRouting() {
     }
   });
 
+  function startNewProvider() {
+    setEditing({ ...blankProvider });
+    setFormMode("new");
+    setDiagnostic({ message: "New provider draft opened. Fill the form below and save it." });
+  }
+
   return (
     <div className="space-y-4">
       <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
@@ -67,8 +75,9 @@ export function ModelRouting() {
           <div>
             <h2 className="text-lg font-semibold">Settings → Model Routing</h2>
             <p className="mt-1 text-sm text-sage">Visible provider registry, agent assignments, run diagnostics, and local LLM routing.</p>
+            <p className="mt-1 text-xs text-risk">Local prototype note: provider secrets are stored in the local SQLite database. Use development keys only. Argument Lab does not use Codex CLI login or cached Codex credentials for provider authentication.</p>
           </div>
-          <Button variant="secondary" onClick={() => setEditing(blankProvider)}>
+          <Button variant="secondary" onClick={startNewProvider}>
             <Plus size={16} />
             New Provider
           </Button>
@@ -76,7 +85,10 @@ export function ModelRouting() {
       </section>
       <div className="grid grid-cols-[420px_1fr] gap-4">
         <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
-          <h3 className="font-semibold">Provider Registry</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Provider Registry</h3>
+            <span className="rounded-sm bg-badge px-2 py-1 text-xs text-sage">{formMode === "edit" ? "Editing provider" : "New provider draft"}</span>
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <Field label="Display name">
               <Input value={editing.display_name ?? ""} onChange={(event) => setEditing({ ...editing, display_name: event.target.value })} />
@@ -91,10 +103,10 @@ export function ModelRouting() {
               </Select>
             </Field>
             <Field label="Base URL">
-              <Input value={editing.base_url ?? ""} onChange={(event) => setEditing({ ...editing, base_url: event.target.value })} placeholder="http://localhost:8000" />
+              <Input value={editing.base_url ?? ""} onChange={(event) => setEditing({ ...editing, base_url: event.target.value })} placeholder="http://localhost:1234/v1 or http://localhost:8001/v1" />
             </Field>
             <Field label="Model name">
-              <Input value={editing.model_name ?? ""} onChange={(event) => setEditing({ ...editing, model_name: event.target.value })} />
+              <Input value={editing.model_name ?? ""} onChange={(event) => setEditing({ ...editing, model_name: event.target.value })} placeholder="Optional for local endpoints with a server default" />
             </Field>
             <Field label="Auth method">
               <Select value={editing.auth_method ?? "none"} onChange={(event) => setEditing({ ...editing, auth_method: event.target.value })}>
@@ -122,9 +134,10 @@ export function ModelRouting() {
             <Field label="Max cost / run">
               <Input type="number" value={editing.max_cost_per_run ?? ""} onChange={(event) => setEditing({ ...editing, max_cost_per_run: Number(event.target.value) })} />
             </Field>
-            <div className="col-span-2 grid grid-cols-3 gap-2 rounded-md border border-line bg-white p-3">
+            <div className="col-span-2 grid grid-cols-4 gap-2 rounded-md border border-line bg-surface p-3">
               <Checkbox checked={Boolean(editing.supports_structured_output)} onChange={(checked) => setEditing({ ...editing, supports_structured_output: checked })} label="JSON/schema" />
               <Checkbox checked={Boolean(editing.supports_tool_calling)} onChange={(checked) => setEditing({ ...editing, supports_tool_calling: checked })} label="Tool support" />
+              <Checkbox checked={Boolean(editing.supports_file_input)} onChange={(checked) => setEditing({ ...editing, supports_file_input: checked })} label="PDF/file input" />
               <Checkbox checked={editing.enabled ?? true} onChange={(checked) => setEditing({ ...editing, enabled: checked })} label="Enabled" />
             </div>
           </div>
@@ -136,23 +149,24 @@ export function ModelRouting() {
           <h3 className="font-semibold">Registered Providers</h3>
           <div className="mt-4 grid gap-3">
             {(providers.data ?? []).map((provider) => (
-              <article key={provider.id} className="rounded-md border border-line bg-white p-4">
+              <article key={provider.id} className="rounded-md border border-line bg-surface p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="font-semibold">{provider.display_name}</div>
                     <div className="mt-1 text-xs text-sage">
-                      {provider.provider_type} | {provider.model_name} | {provider.base_url || "default endpoint"}
+                      {provider.provider_type} | {provider.model_name || "provider default"} | {provider.base_url || "default endpoint"}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1 text-xs">
                       <Badge>Context: {provider.context_window ?? "unknown"}</Badge>
                       <Badge>JSON/schema: {flag(provider.supports_structured_output)}</Badge>
                       <Badge>Tools: {flag(provider.supports_tool_calling)}</Badge>
+                      <Badge>PDF/file input: {flag(provider.supports_file_input)}</Badge>
                       <Badge>{provider.enabled ? "Enabled" : "Disabled"}</Badge>
                     </div>
-                    {provider.last_error ? <div className="mt-2 rounded-sm bg-[#f7e5df] px-2 py-1 text-xs text-risk">Last error: {provider.last_error}</div> : null}
+                    {provider.last_error ? <div className="mt-2 rounded-sm bg-riskSoft px-2 py-1 text-xs text-risk">Last error: {provider.last_error}</div> : null}
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="secondary" size="icon" title="Edit provider" onClick={() => setEditing({ ...provider, api_key: "" })}>
+                    <Button variant="secondary" size="icon" title="Edit provider" onClick={() => { setEditing({ ...provider, api_key: "" }); setFormMode("edit"); }}>
                       <Wand2 size={15} />
                     </Button>
                     <Button variant="danger" size="icon" title="Delete provider" onClick={() => deleteProvider.mutate(provider.id)}>
@@ -176,7 +190,7 @@ export function ModelRouting() {
             ))}
           </div>
           {diagnostic ? (
-            <div className="mt-4 rounded-md border border-line bg-[#f0eadc] p-3 text-sm">
+            <div className="mt-4 rounded-md border border-line bg-surface2 p-3 text-sm">
               <div className="font-semibold">Latest Diagnostic</div>
               <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(diagnostic, null, 2)}</pre>
             </div>
@@ -221,7 +235,7 @@ function AgentRoutingTable({ providers, routes }: { providers: Provider[]; route
                     value={route.default_provider_id ?? ""}
                     onChange={(value) => update.mutate({ agentId: route.agent_id, payload: { ...route, default_provider_id: value || null } })}
                   />
-                  <div className="mt-1 text-xs text-sage">{route.default_provider_id ? providersById[route.default_provider_id]?.model_name : "Unassigned"}</div>
+                  <div className="mt-1 text-xs text-sage">{route.default_provider_id ? providersById[route.default_provider_id]?.model_name || "provider default" : "Unassigned"}</div>
                 </td>
                 <td className="pr-2">
                   <ProviderSelect
@@ -263,7 +277,7 @@ function ProviderSelect({ providers, value, onChange }: { providers: Provider[];
       <option value="">Unassigned</option>
       {providers.map((provider) => (
         <option key={provider.id} value={provider.id}>
-          {provider.display_name} / {provider.model_name}
+          {provider.display_name} / {provider.model_name || "provider default"}
         </option>
       ))}
     </Select>
@@ -280,7 +294,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-sage">{children}</span>;
+  return <span className="rounded-sm bg-badge px-2 py-1 text-sage">{children}</span>;
 }
 
 function flag(value?: boolean | null) {
@@ -291,18 +305,27 @@ function flag(value?: boolean | null) {
 
 function normalizeProviderPayload(editing: Partial<Provider> & { api_key?: string | null }) {
   return {
-    display_name: editing.display_name || "Provider",
+    display_name: editing.display_name || providerDisplayName(editing.provider_type),
     provider_type: editing.provider_type || "mock",
     base_url: editing.base_url || null,
-    model_name: editing.model_name || "model",
+    model_name: editing.model_name?.trim() || "",
     auth_method: editing.auth_method || "none",
     api_key: editing.api_key || null,
     token_reference: editing.token_reference || null,
     context_window: editing.context_window ? Number(editing.context_window) : null,
     supports_structured_output: editing.supports_structured_output ?? null,
     supports_tool_calling: editing.supports_tool_calling ?? null,
+    supports_file_input: editing.supports_file_input ?? null,
     max_cost_per_run: editing.max_cost_per_run ? Number(editing.max_cost_per_run) : null,
     enabled: editing.enabled ?? true
   };
 }
 
+function providerDisplayName(providerType?: string | null) {
+  if (providerType === "local_openai_compatible") return "Local OpenAI-compatible";
+  if (providerType === "litellm_proxy") return "LiteLLM Proxy";
+  if (providerType === "openai_api_key") return "OpenAI API";
+  if (providerType === "anthropic") return "Anthropic";
+  if (providerType === "mock") return "Mock provider";
+  return "Provider";
+}

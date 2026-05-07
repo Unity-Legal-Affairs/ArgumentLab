@@ -43,7 +43,7 @@ export function EmailTimeline({ matterId }: { matterId: string }) {
         <h2 className="text-lg font-semibold">Email Timeline</h2>
         <div className="mt-4 space-y-3">
           {(emails.data ?? []).map((email) => (
-            <article key={email.id} className="rounded-md border border-line bg-white p-4">
+            <article key={email.id} className="rounded-md border border-line bg-surface p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-sm font-semibold">
@@ -55,7 +55,7 @@ export function EmailTimeline({ matterId }: { matterId: string }) {
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
                   {email.legal_event_tags.map((tag) => (
-                    <span key={tag} className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-docket">
+                    <span key={tag} className="rounded-sm bg-badge px-2 py-1 text-xs text-docket">
                       {tag}
                     </span>
                   ))}

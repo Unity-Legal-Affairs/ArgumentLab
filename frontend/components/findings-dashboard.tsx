@@ -41,7 +41,7 @@ export function FindingsDashboard({ matterId, selectedSimulationId }: { matterId
             <h2 className="text-lg font-semibold">Findings Dashboard</h2>
             <p className="mt-1 text-sm text-sage">Structured vulnerability memo inputs, source links, judge reactions, unsupported facts, authority warnings, and transcript.</p>
           </div>
-          <div className="flex items-center gap-2 rounded-sm bg-[#eef2ef] px-3 py-2 text-sm text-sage">
+          <div className="flex items-center gap-2 rounded-sm bg-badge px-3 py-2 text-sm text-sage">
             <Scale size={16} />
             {findings.length} finding(s)
           </div>
@@ -51,7 +51,7 @@ export function FindingsDashboard({ matterId, selectedSimulationId }: { matterId
             <button
               key={item}
               onClick={() => setTab(item)}
-              className={`rounded-md border px-3 py-2 text-sm ${item === tab ? "border-ink bg-ink text-paper" : "border-line bg-white text-ink"}`}
+              className={`rounded-md border px-3 py-2 text-sm ${item === tab ? "border-ink bg-ink text-paper" : "border-line bg-surface text-ink"}`}
             >
               {item}
             </button>
@@ -71,7 +71,7 @@ export function FindingsDashboard({ matterId, selectedSimulationId }: { matterId
           {exportMemo.data ? (
             <div className="mt-4">
               <div className="mb-2 text-sm text-sage">{exportMemo.data.storage_path}</div>
-              <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-4 text-sm">{exportMemo.data.content}</pre>
+              <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-surface p-4 text-sm">{exportMemo.data.content}</pre>
             </div>
           ) : null}
         </section>
@@ -103,19 +103,19 @@ function FindingList({ findings }: { findings: Finding[] }) {
               </div>
               <h3 className="mt-1 text-lg font-semibold">{finding.title}</h3>
             </div>
-            <span className={`rounded-sm px-2 py-1 text-xs ${finding.severity === "critical" || finding.severity === "high" ? "bg-[#f7e5df] text-risk" : "bg-[#eef2ef] text-sage"}`}>
+            <span className={`rounded-sm px-2 py-1 text-xs ${finding.severity === "critical" || finding.severity === "high" ? "bg-riskSoft text-risk" : "bg-badge text-sage"}`}>
               {finding.severity} / {finding.confidence}
             </span>
           </div>
           <p className="mt-3 text-sm leading-6">{finding.description}</p>
           <p className="mt-2 text-sm leading-6 text-sage">{finding.why_it_matters}</p>
-          <div className="mt-3 rounded-md border border-line bg-white p-3 text-sm">
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 text-sm">
             <span className="font-semibold">Recommended fix: </span>
             {finding.recommended_fix}
           </div>
           <div className="mt-3 space-y-2">
             {finding.supporting_sources.map((source, index) => (
-              <div key={index} className="rounded-md border border-line bg-white p-3 text-xs leading-5 text-sage">
+              <div key={index} className="rounded-md border border-line bg-surface p-3 text-xs leading-5 text-sage">
                 <div>
                   {String(source.source_type)} | {String(source.source_id)} | {String(source.timestamp ?? source.page ?? "source")}
                 </div>
@@ -149,18 +149,19 @@ function JudgeViews({ judges }: { judges: Array<{ id: string; persona: string; o
   );
 }
 
-function Transcript({ turns }: { turns: Array<{ id: string; round_number: number; turn_number: number; agent_role: string; model_provider?: string | null; model_name?: string | null; output: Record<string, unknown> }> }) {
+function Transcript({ turns }: { turns: Array<{ id: string; round_number: number; turn_number: number; agent_role: string; model_provider?: string | null; model_name?: string | null; model_requested?: string | null; model_used?: string | null; provider_status?: string; schema_validated?: boolean; error?: string | null; output: Record<string, unknown> }> }) {
   return (
     <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
       <div className="space-y-3">
         {turns.map((turn) => (
-          <article key={turn.id} className="rounded-md border border-line bg-white p-3 text-sm">
+          <article key={turn.id} className="rounded-md border border-line bg-surface p-3 text-sm">
             <div className="font-semibold">
               Round {turn.round_number}, Turn {turn.turn_number}: {turn.agent_role}
             </div>
             <div className="mt-1 text-xs text-sage">
-              {turn.model_provider}/{turn.model_name}
+              requested {turn.model_requested ?? `${turn.model_provider}/${turn.model_name || "provider default"}`} | used {turn.model_used ?? "unknown"} | {turn.provider_status ?? "unknown"} | schema {turn.schema_validated ? "valid" : "failed"}
             </div>
+            {turn.error ? <div className="mt-2 rounded-sm bg-riskSoft px-2 py-1 text-xs text-risk">{turn.error}</div> : null}
             <p className="mt-2 leading-6">{String(turn.output.claim ?? turn.output.tentative_view ?? "")}</p>
           </article>
         ))}
@@ -168,4 +169,3 @@ function Transcript({ turns }: { turns: Array<{ id: string; round_number: number
     </section>
   );
 }
-

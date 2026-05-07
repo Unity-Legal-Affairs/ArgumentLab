@@ -55,8 +55,8 @@ async def upload_documents(
         )
         db.add(doc)
         db.flush()
-        if doc.document_type == "email" or storage_path.suffix.lower() in {".eml", ".mbox", ".txt", ".html", ".htm"} and looks_like_email(text):
-            for parsed in parse_email_file(storage_path, filename):
+        if doc.document_type == "email" or storage_path.suffix.lower() in {".eml", ".mbox", ".txt", ".html", ".htm", ".pdf"} and looks_like_email(text):
+            for parsed in parse_email_file(storage_path, filename, text_override=text if storage_path.suffix.lower() == ".pdf" else None):
                 db.add(
                     EmailEvent(
                         matter_id=matter_id,
@@ -111,4 +111,3 @@ def patch_document(matter_id: str, document_id: str, payload: DocumentPatch, db:
 def looks_like_email(text: str) -> bool:
     lower = text[:3000].lower()
     return ("from:" in lower and "to:" in lower and ("subject:" in lower or "sent:" in lower or "date:" in lower))
-

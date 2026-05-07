@@ -45,14 +45,17 @@ class ParsedEmail:
     duplicate_quote_warning: bool = False
 
 
-def parse_email_file(path: Path, filename: str) -> list[ParsedEmail]:
+def parse_email_file(path: Path, filename: str, text_override: str | None = None) -> list[ParsedEmail]:
     suffix = path.suffix.lower()
     if suffix == ".mbox":
         return parse_mbox(path)
     if suffix == ".eml":
         message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
         return [parse_message(message)]
-    text = path.read_text(errors="ignore")
+    if text_override is not None:
+        text = text_override
+    else:
+        text = path.read_text(errors="ignore")
     return parse_copied_thread(text=text, subject=filename)
 
 
@@ -262,4 +265,3 @@ def detect_legal_tags(text: str | None) -> list[str]:
     lower = text.lower()
     tags = [tag for tag, keywords in LEGAL_TAG_KEYWORDS.items() if any(keyword in lower for keyword in keywords)]
     return tags[:8]
-

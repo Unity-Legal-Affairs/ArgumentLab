@@ -5,17 +5,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#18201f",
-        paper: "#f7f4ec",
-        panel: "#fffdf7",
-        line: "#d7d0c1",
-        risk: "#b93f35",
-        amber: "#b26b2f",
-        docket: "#315f72",
-        sage: "#61715d"
+        ink: "rgb(var(--color-ink) / <alpha-value>)",
+        paper: "rgb(var(--color-paper) / <alpha-value>)",
+        panel: "rgb(var(--color-panel) / <alpha-value>)",
+        surface: "rgb(var(--color-surface) / <alpha-value>)",
+        surface2: "rgb(var(--color-surface-2) / <alpha-value>)",
+        line: "rgb(var(--color-line) / <alpha-value>)",
+        risk: "rgb(var(--color-risk) / <alpha-value>)",
+        riskSoft: "rgb(var(--color-risk-soft) / <alpha-value>)",
+        riskHover: "rgb(var(--color-risk-hover) / <alpha-value>)",
+        amber: "rgb(var(--color-amber) / <alpha-value>)",
+        docket: "rgb(var(--color-docket) / <alpha-value>)",
+        sage: "rgb(var(--color-sage) / <alpha-value>)",
+        badge: "rgb(var(--color-badge) / <alpha-value>)",
+        sidebar: "rgb(var(--color-sidebar) / <alpha-value>)",
+        inkHover: "rgb(var(--color-ink-hover) / <alpha-value>)",
+        okSoft: "rgb(var(--color-ok-soft) / <alpha-value>)"
       },
       boxShadow: {
-        warroom: "0 16px 40px rgba(24,32,31,0.08)"
+        warroom: "var(--shadow-warroom)"
       }
     }
   },
@@ -23,4 +31,3 @@ const config: Config = {
 };
 
 export default config;
-

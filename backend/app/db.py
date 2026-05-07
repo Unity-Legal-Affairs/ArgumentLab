@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import get_settings
@@ -28,4 +28,32 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    run_lightweight_migrations()
 
+
+def run_lightweight_migrations() -> None:
+    """Apply additive local SQLite/Postgres-safe columns for prototype upgrades.
+
+    This is intentionally narrow. v0.1 does not ship Alembic yet, but existing
+    local users should not have to delete `~/.argument-lab` when we add
+    trust/traceability metadata.
+    """
+
+    inspector = inspect(engine)
+    with engine.begin() as connection:
+        if inspector.has_table("simulation_turns"):
+            columns = {column["name"] for column in inspector.get_columns("simulation_turns")}
+            additions = {
+                "model_requested": "VARCHAR(300)",
+                "model_used": "VARCHAR(300)",
+                "provider_status": "VARCHAR(64) DEFAULT 'unknown' NOT NULL",
+                "schema_validated": "BOOLEAN DEFAULT 0 NOT NULL",
+                "error": "TEXT",
+            }
+            for name, ddl_type in additions.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE simulation_turns ADD COLUMN {name} {ddl_type}"))
+        if inspector.has_table("providers"):
+            provider_columns = {column["name"] for column in inspector.get_columns("providers")}
+            if "supports_file_input" not in provider_columns:
+                connection.execute(text("ALTER TABLE providers ADD COLUMN supports_file_input BOOLEAN"))

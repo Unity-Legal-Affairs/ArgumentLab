@@ -90,7 +90,7 @@ export function SimulationSetup({ matterId, onSimulationCreated }: { matterId: s
               />
             </Field>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-md border border-line bg-white p-3">
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-md border border-line bg-surface p-3">
             <Checkbox checked={config.strict_record_mode} onChange={(checked) => update(config, setConfig, { strict_record_mode: checked })} label="Strict record mode" />
             <Checkbox checked={config.self_play.allow_judge_interventions} onChange={(checked) => update(config, setConfig, { self_play: { ...config.self_play, allow_judge_interventions: checked } })} label="Judge interventions" />
             <Checkbox checked={config.self_play.allow_rebuttal} onChange={(checked) => update(config, setConfig, { self_play: { ...config.self_play, allow_rebuttal: checked } })} label="Allow rebuttal" />
@@ -116,7 +116,7 @@ export function SimulationSetup({ matterId, onSimulationCreated }: { matterId: s
           <h3 className="font-semibold">Judge Panel and Run-Level Overrides</h3>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {(judges.data ?? []).map((judge) => (
-              <label key={judge.id} className="rounded-md border border-line bg-white p-3 text-sm">
+              <label key={judge.id} className="rounded-md border border-line bg-surface p-3 text-sm">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -148,7 +148,7 @@ export function SimulationSetup({ matterId, onSimulationCreated }: { matterId: s
                   <option value="">Route default</option>
                   {providerOptions.map((provider) => (
                     <option key={provider.id} value={provider.id}>
-                      {provider.display_name} / {provider.model_name}
+                      {provider.display_name} / {provider.model_name || "provider default"}
                     </option>
                   ))}
                 </Select>
@@ -187,4 +187,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function update(config: SimulationConfig, setConfig: (config: SimulationConfig) => void, patch: Partial<SimulationConfig>) {
   setConfig({ ...config, ...patch });
 }
-

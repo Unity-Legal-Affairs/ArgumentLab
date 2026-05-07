@@ -52,12 +52,13 @@ export type Provider = {
   display_name: string;
   provider_type: string;
   base_url?: string | null;
-  model_name: string;
+  model_name?: string | null;
   auth_method: string;
   token_reference?: string | null;
   context_window?: number | null;
   supports_structured_output?: boolean | null;
   supports_tool_calling?: boolean | null;
+  supports_file_input?: boolean | null;
   max_cost_per_run?: number | null;
   enabled: boolean;
   last_error?: string | null;
@@ -117,6 +118,11 @@ export type SimulationTurn = {
   agent_role: string;
   model_provider?: string | null;
   model_name?: string | null;
+  model_requested?: string | null;
+  model_used?: string | null;
+  provider_status: string;
+  schema_validated: boolean;
+  error?: string | null;
   input_refs: Array<Record<string, unknown>>;
   output: Record<string, unknown>;
   claims_made: Array<Record<string, unknown>>;
@@ -175,4 +181,3 @@ export type BenchmarkPacket = {
   planted_issues: string[];
   description: string;
 };
-

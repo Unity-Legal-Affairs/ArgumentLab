@@ -14,14 +14,13 @@ export function Button({ className, variant = "primary", size = "md", ...props }
         size === "sm" && "h-8 px-3 text-xs",
         size === "md" && "h-10 px-4 text-sm",
         size === "icon" && "h-9 w-9 p-0",
-        variant === "primary" && "border-ink bg-ink text-paper hover:bg-[#26302e]",
-        variant === "secondary" && "border-line bg-panel text-ink hover:bg-[#f0eadc]",
-        variant === "ghost" && "border-transparent bg-transparent text-ink hover:bg-[#eee8da]",
-        variant === "danger" && "border-risk bg-risk text-white hover:bg-[#9d332b]",
+        variant === "primary" && "border-ink bg-ink text-paper hover:bg-inkHover",
+        variant === "secondary" && "border-line bg-panel text-ink hover:bg-surface2",
+        variant === "ghost" && "border-transparent bg-transparent text-ink hover:bg-sidebar",
+        variant === "danger" && "border-risk bg-risk text-paper hover:bg-riskHover",
         className
       )}
       {...props}
     />
   );
 }
-

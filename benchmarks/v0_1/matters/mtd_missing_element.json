@@ -3,6 +3,14 @@
   "name": "Motion to dismiss with missing element",
   "description": "Complaint packet omits a necessary element while draft overstates the pleading.",
   "planted_issues": ["missing_element", "unsupported_fact", "procedural_issue"],
+  "expected_findings": [
+    {
+      "category": "unsupported_fact",
+      "must_detect": true,
+      "title_contains": "pinpoint support",
+      "severity": "medium"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "California",
@@ -22,4 +30,3 @@
   ],
   "emails": []
 }
-

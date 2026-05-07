@@ -3,6 +3,20 @@
   "name": "Employment dispute with timeline inconsistency",
   "description": "Draft chronology conflicts with emails about complaint timing and termination.",
   "planted_issues": ["email_chronology_issue", "contradicted_fact", "credibility_timeline"],
+  "expected_findings": [
+    {
+      "category": "contradicted_fact",
+      "must_detect": true,
+      "source_email_contains": "providing notice",
+      "severity": "critical"
+    },
+    {
+      "category": "email_chronology_issue",
+      "must_detect": true,
+      "source_email_contains": "request intervention",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "summary_judgment",
     "jurisdiction": "Federal",
@@ -22,4 +36,3 @@
     }
   ]
 }
-

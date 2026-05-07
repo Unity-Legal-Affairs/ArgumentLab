@@ -3,6 +3,14 @@
   "name": "Contract modification dispute based on emails",
   "description": "Emails suggest modification while contract formalist persona pressures integration and written-change clauses.",
   "planted_issues": ["modification", "waiver", "judge_persona_disagreement"],
+  "expected_findings": [
+    {
+      "category": "email_chronology_issue",
+      "must_detect": true,
+      "source_email_contains": "modify the deadline",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "New York",
@@ -28,4 +36,3 @@
     }
   ]
 }
-
