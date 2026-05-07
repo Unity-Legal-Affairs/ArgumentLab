@@ -41,7 +41,7 @@ def get_transcript(simulation_id: str, db: Session = Depends(get_db)) -> list[di
             "round_number": turn.round_number,
             "turn_number": turn.turn_number,
             "agent_name": turn.agent_role,
-            "model": f"{turn.model_provider}/{turn.model_name}",
+            "model": f"{turn.model_provider}/{turn.model_name or 'provider default'}",
             "model_requested": turn.model_requested,
             "model_used": turn.model_used,
             "provider_status": turn.provider_status,

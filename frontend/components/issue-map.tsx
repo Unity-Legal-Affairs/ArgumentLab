@@ -30,7 +30,7 @@ export function IssueMap({ matterId }: { matterId: string }) {
     <div className="grid grid-cols-[1fr_340px] gap-4">
       <section className="h-[720px] rounded-md border border-line bg-panel p-3 shadow-warroom">
         <ReactFlow nodes={nodes} edges={edges} fitView>
-          <Background color="#d7d0c1" gap={18} />
+          <Background color="rgb(var(--color-line))" gap={18} />
           <Controls />
         </ReactFlow>
       </section>
@@ -54,11 +54,11 @@ function node(id: string, label: string, x: number, y: number): Node {
     position: { x, y },
     data: { label },
     style: {
-      border: "1px solid #d7d0c1",
+      border: "1px solid rgb(var(--color-line))",
       borderRadius: 6,
       padding: 12,
-      background: "#fffdf7",
-      color: "#18201f",
+      background: "rgb(var(--color-panel))",
+      color: "rgb(var(--color-ink))",
       fontSize: 13,
       width: 170
     }
@@ -66,15 +66,14 @@ function node(id: string, label: string, x: number, y: number): Node {
 }
 
 function edge(source: string, target: string): Edge {
-  return { id: `${source}-${target}`, source, target, animated: true, style: { stroke: "#315f72" } };
+  return { id: `${source}-${target}`, source, target, animated: true, style: { stroke: "rgb(var(--color-docket))" } };
 }
 
 function MapBlock({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-md border border-line bg-white p-3">
+    <div className="rounded-md border border-line bg-surface p-3">
       <div className="font-semibold">{title}</div>
       <div className="mt-1 text-sage">{value}</div>
     </div>
   );
 }
-

@@ -23,7 +23,7 @@ Argument Lab is designed to turn those risks into visible, structured findings w
 - Creates local matters without accounts or login.
 - Uploads legal materials and classifies them by document type.
 - Extracts document text and previewable source snippets.
-- Parses `.eml`, `.mbox`, copied email threads, and text-like email exports into a chronological timeline. PDF email exports use extracted PDF text when available and should still be treated as best-effort.
+- Parses `.eml`, `.mbox`, copied email threads, and text-like email exports into a chronological timeline. PDF email exports use extracted PDF text with page-level quality warnings and should still be treated as best-effort.
 - Tags email events for notice, waiver, modification, repudiation, delay, reliance, damages, and related legal significance.
 - Lets users configure model providers in the UI.
 - Assigns different models to different legal agents.
@@ -67,7 +67,6 @@ Model routing is a first-class product feature. The user can add, edit, delete, 
 
 Supported provider types:
 
-- OpenAI OAuth placeholder
 - OpenAI API key
 - Anthropic
 - LiteLLM Proxy-compatible endpoint
@@ -78,9 +77,10 @@ Each runtime agent can be assigned a default model, fallback model, temperature,
 
 Important v0.1 limitations:
 
-- OpenAI OAuth is a provider type placeholder; the PKCE OAuth flow is not implemented yet.
+- OpenAI API calls currently use API keys. Argument Lab does not use Codex CLI login or cached Codex credentials for provider authentication.
 - LiteLLM support is proxy-compatible through OpenAI-style HTTP. The backend does not use the LiteLLM Python SDK yet.
 - Local provider secrets are stored in the local SQLite database. Use development credentials only.
+- A future Codex local-agent integration should be separate from model-provider routing.
 
 Agents:
 
@@ -98,13 +98,16 @@ Local LLM example:
 {
   "provider": "local_openai_compatible",
   "base_url": "http://localhost:8000",
-  "model": "local-model",
+  "model": "",
   "api_key": "optional",
-  "supports_structured_output": false,
+  "supports_structured_output": true,
   "supports_tool_calling": false,
+  "supports_file_input": false,
   "context_window": 32768
 }
 ```
+
+For local OpenAI-compatible servers such as vLLM or LM Studio, `model` may be left blank when the server has a default model route. If the endpoint requires a model value, the provider diagnostic will fail and show the error.
 
 ## Self-Play Engine
 
@@ -174,6 +177,13 @@ Authority claims are labeled:
 Argument Lab v0.1 does not verify whether a case is still good law. It does not imply external legal research unless a future legal research integration is explicitly added.
 
 Grounding is currently exact-retrieval based. It is useful for planted contradiction benchmarks and obvious record gaps, but it is not yet a full legal-grade retrieval system with OCR, vector search, robust quote location, or comprehensive claim extraction.
+
+PDF ingestion is layered:
+
+- Local page text remains the canonical record for source grounding.
+- Each PDF page gets extraction metadata, character count, quality score, and warnings for low/no native text.
+- Provider records can mark whether the model supports PDF/file input, but model-native PDF review is treated as enrichment, not authoritative record text.
+- OCR and model-native PDF extraction are planned as optional follow-up paths for scanned pages, diagrams, stamps, signatures, and table-heavy exhibits.
 
 ## Local-First Design
 

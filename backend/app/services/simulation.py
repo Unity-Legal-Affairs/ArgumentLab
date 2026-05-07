@@ -38,6 +38,16 @@ ROUTABLE_AGENTS = [
     ("synthesis_agent", "Synthesis Agent"),
 ]
 
+DEFAULT_AGENT_ROUTE_SETTINGS = {
+    "advocate": {"temperature": 0.25, "max_tokens": 6000},
+    "opposing_counsel": {"temperature": 0.3, "max_tokens": 6000},
+    "judge_persona_1": {"temperature": 0.15, "max_tokens": 3500},
+    "judge_persona_2": {"temperature": 0.15, "max_tokens": 3500},
+    "record_auditor": {"temperature": 0.05, "max_tokens": 5000},
+    "authority_auditor": {"temperature": 0.05, "max_tokens": 5000},
+    "synthesis_agent": {"temperature": 0.2, "max_tokens": 8000},
+}
+
 JUDGE_PERSONAS: dict[str, dict[str, Any]] = {
     "strict_proceduralist": {
         "name": "Strict Proceduralist",
@@ -116,6 +126,7 @@ def seed_model_routing(db: Session) -> None:
         db.flush()
     for agent_id, agent_name in ROUTABLE_AGENTS:
         existing = db.get(AgentRouting, agent_id)
+        defaults = DEFAULT_AGENT_ROUTE_SETTINGS[agent_id]
         if not existing:
             db.add(
                 AgentRouting(
@@ -123,12 +134,15 @@ def seed_model_routing(db: Session) -> None:
                     agent_name=agent_name,
                     default_provider_id=mock.id,
                     fallback_provider_id=mock.id,
-                    temperature=0.2 if "judge" not in agent_id else 0.15,
-                    max_tokens=1800,
+                    temperature=defaults["temperature"],
+                    max_tokens=defaults["max_tokens"],
                     strict_json=True,
                     enabled=True,
                 )
             )
+        elif existing.max_tokens in {1600, 1800}:
+            existing.max_tokens = defaults["max_tokens"]
+            existing.temperature = defaults["temperature"]
     db.commit()
 
 
@@ -522,7 +536,7 @@ async def handle_provider_failure(
 def provider_label(provider: Provider | None) -> str | None:
     if not provider:
         return None
-    return f"{provider.display_name}/{provider.model_name}"
+    return f"{provider.display_name}/{provider.model_name or 'provider default'}"
 
 
 def fallback_output(

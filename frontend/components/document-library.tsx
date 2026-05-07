@@ -37,7 +37,7 @@ export function DocumentLibrary({ matterId }: { matterId: string }) {
     <div className="grid grid-cols-[420px_1fr] gap-4">
       <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
         <h2 className="text-lg font-semibold">Upload / Document Library</h2>
-        <div className="mt-4 rounded-md border border-dashed border-sage bg-white p-4">
+        <div className="mt-4 rounded-md border border-dashed border-sage bg-surface p-4">
           <Label>Drag/drop or select files</Label>
           <input
             type="file"
@@ -66,11 +66,11 @@ export function DocumentLibrary({ matterId }: { matterId: string }) {
             <button
               key={doc.id}
               onClick={() => setSelectedDocId(doc.id)}
-              className={`w-full rounded-md border p-3 text-left text-sm ${selectedDoc?.id === doc.id ? "border-ink bg-[#f0eadc]" : "border-line bg-white"}`}
+              className={`w-full rounded-md border p-3 text-left text-sm ${selectedDoc?.id === doc.id ? "border-ink bg-surface2" : "border-line bg-surface"}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-semibold">{doc.filename}</span>
-                <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-sage">{doc.document_type}</span>
+                <span className="rounded-sm bg-badge px-2 py-1 text-xs text-sage">{doc.document_type}</span>
               </div>
               <div className="mt-1 text-xs text-sage">{doc.status} | {(doc.size_bytes / 1024).toFixed(1)} KB</div>
             </button>
@@ -85,8 +85,8 @@ export function DocumentLibrary({ matterId }: { matterId: string }) {
         {selectedDoc ? (
           <div className="space-y-4">
             <DocTypeEditor matterId={matterId} documentId={selectedDoc.id} value={selectedDoc.document_type} />
-            <div className="rounded-md border border-line bg-white p-3 text-xs leading-5 text-sage">{selectedDoc.classification_reason}</div>
-            <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-4 text-sm leading-6">
+            <div className="rounded-md border border-line bg-surface p-3 text-xs leading-5 text-sage">{selectedDoc.classification_reason}</div>
+            <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-surface p-4 text-sm leading-6">
               {selectedDoc.extracted_text || "No text extracted."}
             </pre>
           </div>

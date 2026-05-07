@@ -40,17 +40,20 @@ def run_lightweight_migrations() -> None:
     """
 
     inspector = inspect(engine)
-    if not inspector.has_table("simulation_turns"):
-        return
-    columns = {column["name"] for column in inspector.get_columns("simulation_turns")}
-    additions = {
-        "model_requested": "VARCHAR(300)",
-        "model_used": "VARCHAR(300)",
-        "provider_status": "VARCHAR(64) DEFAULT 'unknown' NOT NULL",
-        "schema_validated": "BOOLEAN DEFAULT 0 NOT NULL",
-        "error": "TEXT",
-    }
     with engine.begin() as connection:
-        for name, ddl_type in additions.items():
-            if name not in columns:
-                connection.execute(text(f"ALTER TABLE simulation_turns ADD COLUMN {name} {ddl_type}"))
+        if inspector.has_table("simulation_turns"):
+            columns = {column["name"] for column in inspector.get_columns("simulation_turns")}
+            additions = {
+                "model_requested": "VARCHAR(300)",
+                "model_used": "VARCHAR(300)",
+                "provider_status": "VARCHAR(64) DEFAULT 'unknown' NOT NULL",
+                "schema_validated": "BOOLEAN DEFAULT 0 NOT NULL",
+                "error": "TEXT",
+            }
+            for name, ddl_type in additions.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE simulation_turns ADD COLUMN {name} {ddl_type}"))
+        if inspector.has_table("providers"):
+            provider_columns = {column["name"] for column in inspector.get_columns("providers")}
+            if "supports_file_input" not in provider_columns:
+                connection.execute(text("ALTER TABLE providers ADD COLUMN supports_file_input BOOLEAN"))

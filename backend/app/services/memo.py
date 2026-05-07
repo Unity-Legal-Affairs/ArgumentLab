@@ -86,7 +86,7 @@ def render_memo(run: SimulationRun, findings: list[SimulationFinding], turns: li
         claim = turn.output.get("claim") or turn.output.get("tentative_view") or ""
         lines.append(
             f"- Round {turn.round_number}, Turn {turn.turn_number}, {turn.agent_role}: "
-            f"requested {turn.model_requested or turn.model_provider}/{turn.model_name}; "
+            f"requested {turn.model_requested or turn.model_provider}/{turn.model_name or 'provider default'}; "
             f"used {turn.model_used or 'unknown'}; status {turn.provider_status}; "
             f"schema_validated={turn.schema_validated}. {claim[:220]}"
         )

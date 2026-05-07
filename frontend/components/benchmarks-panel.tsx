@@ -15,14 +15,14 @@ export function BenchmarksPanel() {
         <h2 className="text-lg font-semibold">Regression Benchmark Packets</h2>
         <div className="mt-4 grid gap-3">
           {(packets.data ?? []).map((packet) => (
-            <article key={packet.id} className="rounded-md border border-line bg-white p-4">
+            <article key={packet.id} className="rounded-md border border-line bg-surface p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="font-semibold">{packet.name}</div>
                   <p className="mt-1 text-sm leading-6 text-sage">{packet.description}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {packet.planted_issues.map((issue) => (
-                      <span key={issue} className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-docket">
+                      <span key={issue} className="rounded-sm bg-badge px-2 py-1 text-xs text-docket">
                         {issue}
                       </span>
                     ))}
@@ -42,7 +42,7 @@ export function BenchmarksPanel() {
           <Gauge size={17} />
           Last Benchmark Result
         </h3>
-        <pre className="mt-4 max-h-[720px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-3 text-xs">
+        <pre className="mt-4 max-h-[720px] overflow-auto whitespace-pre-wrap rounded-md border border-line bg-surface p-3 text-xs">
           {run.data ? JSON.stringify(run.data, null, 2) : "No benchmark run yet."}
         </pre>
       </aside>

@@ -52,12 +52,13 @@ export type Provider = {
   display_name: string;
   provider_type: string;
   base_url?: string | null;
-  model_name: string;
+  model_name?: string | null;
   auth_method: string;
   token_reference?: string | null;
   context_window?: number | null;
   supports_structured_output?: boolean | null;
   supports_tool_calling?: boolean | null;
+  supports_file_input?: boolean | null;
   max_cost_per_run?: number | null;
   enabled: boolean;
   last_error?: string | null;

@@ -56,7 +56,7 @@ export function MatterHome({ matter, onSimulationSelected }: { matter: Matter; o
                 <span>Findings</span>
                 <span className="font-semibold">{String(latest.summary?.finding_count ?? "-")}</span>
               </div>
-              <div className="rounded-md bg-[#f0eadc] p-3 text-sage">
+              <div className="rounded-md bg-surface2 p-3 text-sage">
                 {Array.isArray(latest.summary?.top_vulnerabilities)
                   ? latest.summary.top_vulnerabilities.slice(0, 3).join(" | ")
                   : "No vulnerabilities yet."}
@@ -86,7 +86,7 @@ function StatusPanel({
     <div className="rounded-md border border-line bg-panel p-4 shadow-warroom">
       <div className="mb-3 flex items-center justify-between">
         <Icon size={18} className="text-docket" />
-        <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-sage">{value}</span>
+        <span className="rounded-sm bg-badge px-2 py-1 text-xs text-sage">{value}</span>
       </div>
       <h3 className="font-semibold">{label}</h3>
       <p className="mt-1 text-xs leading-5 text-sage">{status}</p>
@@ -96,7 +96,7 @@ function StatusPanel({
 
 function ChecklistItem({ done, label }: { done: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2">
+    <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2">
       <span className={`h-2.5 w-2.5 rounded-full ${done ? "bg-sage" : "bg-amber"}`} />
       <span>{label}</span>
     </div>
