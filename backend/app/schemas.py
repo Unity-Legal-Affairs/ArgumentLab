@@ -234,6 +234,11 @@ class SimulationTurnRead(BaseModel):
     agent_role: str
     model_provider: str | None = None
     model_name: str | None = None
+    model_requested: str | None = None
+    model_used: str | None = None
+    provider_status: str = "unknown"
+    schema_validated: bool = False
+    error: str | None = None
     input_refs: list[dict[str, Any]] = []
     output: dict[str, Any] = {}
     claims_made: list[dict[str, Any]] = []
@@ -339,4 +344,3 @@ class BenchmarkRunResult(BaseModel):
     matter_id: str
     simulation_id: str
     metrics: dict[str, Any]
-

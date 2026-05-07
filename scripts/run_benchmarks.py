@@ -22,7 +22,13 @@ async def main() -> None:
         root = ROOT / "benchmarks" / "v0_1" / "matters"
         for path in sorted(root.glob("*.json")):
             result = await run_packet(BenchmarkRunRequest(packet_id=path.stem), db)
-            print(f"{path.stem}: sim={result.simulation_id} findings={result.metrics['useful_vulnerabilities_found']}")
+            score = result.metrics.get("answer_key", {})
+            print(
+                f"{path.stem}: sim={result.simulation_id} "
+                f"findings={result.metrics['useful_vulnerabilities_found']} "
+                f"tp={score.get('true_positive_count', 0)}/{score.get('expected_count', 0)} "
+                f"false+={score.get('false_positive_count', 0)}"
+            )
 
 
 if __name__ == "__main__":

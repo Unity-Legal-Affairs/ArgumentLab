@@ -43,12 +43,18 @@ export function SelfPlayArena({ matterId, selectedSimulationId }: { matterId: st
                       <div>
                         <div className="font-semibold">{turn.agent_role}</div>
                         <div className="mt-1 text-xs text-sage">
-                          Turn {turn.turn_number} | {turn.model_provider}/{turn.model_name} | confidence {turn.confidence}
+                          Turn {turn.turn_number} | requested {turn.model_requested ?? `${turn.model_provider}/${turn.model_name}`} | used {turn.model_used ?? "unknown"} | confidence {turn.confidence}
                         </div>
                       </div>
-                      <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-docket">{turn.agent_id}</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="rounded-sm bg-[#eef2ef] px-2 py-1 text-xs text-docket">{turn.agent_id}</span>
+                        <span className={`rounded-sm px-2 py-1 text-xs ${turn.provider_status === "actual" ? "bg-[#e7f1e9] text-sage" : "bg-[#f7e5df] text-risk"}`}>
+                          {turn.provider_status} | schema {turn.schema_validated ? "valid" : "failed"}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-3 text-sm leading-6">{String(turn.output.claim ?? turn.output.tentative_view ?? "")}</p>
+                    {turn.error ? <div className="mt-3 rounded-md border border-risk/30 bg-[#f7e5df] p-3 text-xs text-risk">{turn.error}</div> : null}
                     {turn.new_findings.length ? (
                       <div className="mt-3 rounded-md border border-risk/30 bg-[#f7e5df] p-3 text-xs text-risk">
                         {turn.new_findings.map((finding, index) => (

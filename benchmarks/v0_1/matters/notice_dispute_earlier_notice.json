@@ -3,6 +3,20 @@
   "name": "Notice dispute where emails prove earlier notice",
   "description": "A notice argument is weakened by emails showing earlier notice and reservation of rights.",
   "planted_issues": ["email_chronology_issue", "notice_issue", "waiver"],
+  "expected_findings": [
+    {
+      "category": "contradicted_fact",
+      "must_detect": true,
+      "source_email_contains": "written notice of breach",
+      "severity": "critical"
+    },
+    {
+      "category": "email_chronology_issue",
+      "must_detect": true,
+      "source_email_contains": "reserve all rights",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "Delaware",
@@ -22,4 +36,3 @@
     }
   ]
 }
-

@@ -32,6 +32,12 @@ def render_memo(run: SimulationRun, findings: list[SimulationFinding], turns: li
         f"Strict record mode: {run.config.get('strict_record_mode', True)}",
         f"Authority mode: {run.config.get('authority_mode', 'uploaded_only')}",
         "",
+        "## Trust Metadata",
+        "",
+        f"Claim grounding summary: {run.summary.get('claim_grounding', {})}",
+        f"Adversarial attack status: {run.summary.get('adversarial_attack_status', {})}",
+        f"Open attack count: {run.summary.get('open_attack_count', 0)}",
+        "",
         "## Executive Vulnerabilities",
     ]
     if findings:
@@ -78,7 +84,12 @@ def render_memo(run: SimulationRun, findings: list[SimulationFinding], turns: li
     lines.extend(["## Transcript Index", ""])
     for turn in turns:
         claim = turn.output.get("claim") or turn.output.get("tentative_view") or ""
-        lines.append(f"- Round {turn.round_number}, Turn {turn.turn_number}, {turn.agent_role} using {turn.model_provider}/{turn.model_name}: {claim[:220]}")
+        lines.append(
+            f"- Round {turn.round_number}, Turn {turn.turn_number}, {turn.agent_role}: "
+            f"requested {turn.model_requested or turn.model_provider}/{turn.model_name}; "
+            f"used {turn.model_used or 'unknown'}; status {turn.provider_status}; "
+            f"schema_validated={turn.schema_validated}. {claim[:220]}"
+        )
 
     lines.extend(
         [
@@ -88,4 +99,3 @@ def render_memo(run: SimulationRun, findings: list[SimulationFinding], turns: li
         ]
     )
     return "\n".join(lines)
-

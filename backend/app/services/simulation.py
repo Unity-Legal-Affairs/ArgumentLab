@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -21,6 +22,7 @@ from app.models import (
     SimulationTurn,
 )
 from app.schemas import SimulationConfig
+from app.services.grounding import extract_material_claims, ground_claims
 from app.services.ingestion import find_citations
 from app.services.model_gateway import ModelGateway
 from app.services.prompts import load_prompt
@@ -87,6 +89,16 @@ class JudgeOutput(BaseModel):
     confidence: str = "medium"
 
 
+@dataclass
+class TurnProduction:
+    output: AgentTurnOutput | JudgeOutput
+    model_requested: str | None
+    model_used: str | None
+    provider_status: str
+    schema_validated: bool
+    error: str | None = None
+
+
 def seed_model_routing(db: Session) -> None:
     mock = db.scalars(select(Provider).where(Provider.provider_type == "mock")).first()
     if not mock:
@@ -143,7 +155,12 @@ async def execute_simulation(db: Session, simulation_id: str, config: Simulation
     documents = load_documents(db, run.matter_id, config.document_ids)
     emails = load_emails(db, run.matter_id, config.email_thread_ids)
     context = build_context(documents, emails, config)
-    seeded_findings = detect_seed_findings(run.id, documents, emails, config)
+    material_claims = extract_material_claims(documents)
+    grounded_claims = ground_claims(material_claims, documents, emails)
+    context["grounded_claims"] = grounded_claims
+    seeded_findings = detect_seed_findings(run.id, documents, emails, config, grounded_claims)
+    adversarial_state = build_adversarial_state(grounded_claims, seeded_findings)
+    context["adversarial_state"] = adversarial_state
     gateway = ModelGateway()
     turn_number = 1
 
@@ -155,9 +172,11 @@ async def execute_simulation(db: Session, simulation_id: str, config: Simulation
             agents = agents_for_round(round_number, config)
             for agent_id, agent_role in agents:
                 provider, route = resolve_provider(db, agent_id, config.model_routing)
-                output = await produce_turn(
+                fallback_provider = resolve_fallback_provider(db, route, provider)
+                production = await produce_turn(
                     gateway=gateway,
                     provider=provider,
+                    fallback_provider=fallback_provider,
                     agent_id=agent_id,
                     agent_role=agent_role,
                     round_number=round_number,
@@ -166,7 +185,10 @@ async def execute_simulation(db: Session, simulation_id: str, config: Simulation
                     route=route,
                     config=config,
                 )
+                output = production.output
                 turn_findings = seeded_findings if agent_id in {"opposing_counsel", "record_auditor", "authority_auditor"} and round_number <= 2 else []
+                update_adversarial_state(adversarial_state, agent_id, round_number, output, turn_findings)
+                context["adversarial_state"] = adversarial_state
                 turn = SimulationTurn(
                     simulation_id=run.id,
                     round_number=round_number,
@@ -175,8 +197,22 @@ async def execute_simulation(db: Session, simulation_id: str, config: Simulation
                     agent_role=agent_role,
                     model_provider=provider.display_name if provider else "Unassigned",
                     model_name=provider.model_name if provider else None,
+                    model_requested=production.model_requested,
+                    model_used=production.model_used,
+                    provider_status=production.provider_status,
+                    schema_validated=production.schema_validated,
+                    error=production.error,
                     input_refs=context["input_refs"],
-                    output=output.model_dump() if isinstance(output, AgentTurnOutput) else output.model_dump(),
+                    output={
+                        **output.model_dump(),
+                        "execution": {
+                            "model_requested": production.model_requested,
+                            "model_used": production.model_used,
+                            "provider_status": production.provider_status,
+                            "schema_validated": production.schema_validated,
+                            "error": production.error,
+                        },
+                    },
                     claims_made=[{"text": output.claim if isinstance(output, AgentTurnOutput) else output.tentative_view}],
                     claims_attacked=findings_to_claim_attacks(turn_findings),
                     sources_cited=(output.cited_record_support + output.cited_authority_support) if isinstance(output, AgentTurnOutput) else [],
@@ -201,7 +237,7 @@ async def execute_simulation(db: Session, simulation_id: str, config: Simulation
         for finding in seeded_findings:
             db.add(SimulationFinding(**finding))
         add_disagreements(db, run.id, seeded_findings, config)
-        run.summary = summarize_run(seeded_findings, config)
+        run.summary = summarize_run(seeded_findings, config, grounded_claims, adversarial_state)
         run.status = "completed"
         run.completed_at = datetime.utcnow()
         db.commit()
@@ -313,6 +349,15 @@ def resolve_provider(db: Session, agent_id: str, config_routes: dict[str, str | 
     return mock, route
 
 
+def resolve_fallback_provider(db: Session, route: AgentRouting | None, primary: Provider | None) -> Provider | None:
+    if not route or not route.fallback_provider_id:
+        return None
+    fallback = db.get(Provider, route.fallback_provider_id)
+    if fallback and (not primary or fallback.id != primary.id):
+        return fallback
+    return None
+
+
 def normalize_route_agent(agent_id: str) -> str:
     if agent_id.startswith("judge_"):
         return "judge_persona_1"
@@ -326,6 +371,7 @@ def normalize_route_agent(agent_id: str) -> str:
 async def produce_turn(
     gateway: ModelGateway,
     provider: Provider | None,
+    fallback_provider: Provider | None,
     agent_id: str,
     agent_role: str,
     round_number: int,
@@ -333,10 +379,18 @@ async def produce_turn(
     findings: list[dict[str, Any]],
     route: AgentRouting | None,
     config: SimulationConfig,
-) -> AgentTurnOutput | JudgeOutput:
+) -> TurnProduction:
     fallback = fallback_output(agent_id, agent_role, round_number, context, findings, config)
+    requested = provider_label(provider)
     if provider is None or provider.provider_type == "mock":
-        return fallback
+        return TurnProduction(
+            output=fallback,
+            model_requested=requested,
+            model_used=provider_label(provider) or "mock/mock-legal-stress-test",
+            provider_status="mock",
+            schema_validated=True,
+            error=None if provider else "No provider assigned; used mock fallback output.",
+        )
 
     prompt_name = agent_id.removeprefix("judge_") if agent_id.startswith("judge_") else agent_id
     if prompt_name in JUDGE_PERSONAS:
@@ -361,11 +415,114 @@ async def produce_turn(
     if result.ok and result.parsed:
         try:
             if agent_id.startswith("judge_"):
-                return JudgeOutput.model_validate({**fallback.model_dump(), **result.parsed})
-            return AgentTurnOutput.model_validate({**fallback.model_dump(), **result.parsed})
-        except ValidationError:
-            return fallback
-    return fallback
+                output = JudgeOutput.model_validate({**fallback.model_dump(), **result.parsed})
+            else:
+                output = AgentTurnOutput.model_validate({**fallback.model_dump(), **result.parsed})
+            return TurnProduction(
+                output=output,
+                model_requested=requested,
+                model_used=provider_label(provider),
+                provider_status="actual",
+                schema_validated=True,
+            )
+        except ValidationError as exc:
+            return await handle_provider_failure(
+                gateway=gateway,
+                provider=provider,
+                fallback_provider=fallback_provider,
+                fallback=fallback,
+                messages=messages,
+                route=route,
+                config=config,
+                requested=requested,
+                error=f"Schema validation failed: {exc.errors()[0].get('msg', 'invalid output')}",
+                agent_id=agent_id,
+            )
+    reason = result.error or "Provider returned no parseable JSON object."
+    return await handle_provider_failure(
+        gateway=gateway,
+        provider=provider,
+        fallback_provider=fallback_provider,
+        fallback=fallback,
+        messages=messages,
+        route=route,
+        config=config,
+        requested=requested,
+        error=reason,
+        agent_id=agent_id,
+    )
+
+
+async def handle_provider_failure(
+    gateway: ModelGateway,
+    provider: Provider,
+    fallback_provider: Provider | None,
+    fallback: AgentTurnOutput | JudgeOutput,
+    messages: list[dict[str, str]],
+    route: AgentRouting | None,
+    config: SimulationConfig,
+    requested: str | None,
+    error: str,
+    agent_id: str,
+) -> TurnProduction:
+    if config.fallback_behavior == "fail_run":
+        raise RuntimeError(f"{provider_label(provider)} failed for {agent_id}: {error}")
+
+    if config.fallback_behavior == "use_fallback" and not fallback_provider:
+        raise RuntimeError(f"{provider_label(provider)} failed for {agent_id} and no fallback provider is configured: {error}")
+
+    if config.fallback_behavior == "use_fallback" and fallback_provider:
+        if fallback_provider.provider_type == "mock":
+            return TurnProduction(
+                output=fallback,
+                model_requested=requested,
+                model_used=provider_label(fallback_provider),
+                provider_status="mock",
+                schema_validated=True,
+                error=f"Primary provider failed; fallback provider is mock. Primary error: {error}",
+            )
+        fallback_result = await gateway.complete(
+            fallback_provider,
+            messages,
+            temperature=route.temperature if route else 0.2,
+            max_tokens=route.max_tokens if route else 1600,
+            strict_json=route.strict_json if route else True,
+        )
+        if fallback_result.ok and fallback_result.parsed:
+            try:
+                if agent_id.startswith("judge_"):
+                    output: AgentTurnOutput | JudgeOutput = JudgeOutput.model_validate({**fallback.model_dump(), **fallback_result.parsed})
+                else:
+                    output = AgentTurnOutput.model_validate({**fallback.model_dump(), **fallback_result.parsed})
+                return TurnProduction(
+                    output=output,
+                    model_requested=requested,
+                    model_used=provider_label(fallback_provider),
+                    provider_status="fallback_provider",
+                    schema_validated=True,
+                    error=f"Primary provider failed. Primary error: {error}",
+                )
+            except ValidationError as exc:
+                fallback_error = f"Fallback schema validation failed: {exc.errors()[0].get('msg', 'invalid output')}"
+        else:
+            fallback_error = fallback_result.error or "Fallback returned no parseable JSON object."
+        if config.fallback_behavior == "use_fallback":
+            raise RuntimeError(f"{provider_label(provider)} failed and fallback failed for {agent_id}: {error}; {fallback_error}")
+
+    return TurnProduction(
+        output=fallback,
+        model_requested=requested,
+        model_used="mock/local-canned-fallback",
+        provider_status="mock",
+        schema_validated=True,
+        error=f"Provider failed; mock fallback output used. Primary error: {error}",
+    )
+
+
+def provider_label(provider: Provider | None) -> str | None:
+    if not provider:
+        return None
+    return f"{provider.display_name}/{provider.model_name}"
 
 
 def fallback_output(
@@ -399,11 +556,14 @@ def fallback_output(
 
     strongest = strongest_record_signal(context)
     finding_titles = [finding["title"] for finding in findings[:3]]
+    open_attacks = [attack for attack in context.get("adversarial_state", {}).get("attacks", []) if attack.get("status") in {"open", "escalated", "partially_answered"}]
     if agent_id == "opposing_counsel":
         claim = "The position is vulnerable because " + ("; ".join(finding_titles) if finding_titles else "record and authority support have not yet been stress-tested.")
         vulnerability = finding_titles[0] if finding_titles else "No planted high-risk weakness detected locally."
     elif agent_id == "record_auditor":
-        claim = "Factual claims are labeled against the uploaded record and email timeline; unsupported, contradicted, and ambiguous claims remain visible."
+        grounded = context.get("grounded_claims", [])
+        counts = status_counts(grounded)
+        claim = f"Factual claims are checked against uploaded documents and the email timeline: {counts.get('supported', 0)} supported, {counts.get('unsupported', 0)} unsupported, {counts.get('contradicted', 0)} contradicted, {counts.get('ambiguous', 0)} ambiguous."
         vulnerability = next((item["title"] for item in findings if item["category"] in {"unsupported_fact", "contradicted_fact", "email_chronology_issue"}), None)
     elif agent_id == "authority_auditor":
         claim = "Authority support is limited to uploaded materials; external validity and good-law status are not checked in v0.1."
@@ -421,7 +581,8 @@ def fallback_output(
         claim = "Initial issue map links claims to elements, facts, evidence, authority, counterarguments, and judge concerns."
         vulnerability = None
     else:
-        claim = f"The strongest available position relies on uploaded record support such as: {strongest}"
+        unresolved = open_attacks[0]["title"] if open_attacks else "no open attack yet"
+        claim = f"The strongest available position relies on uploaded record support such as: {strongest}. Current unresolved attack: {unresolved}."
         vulnerability = None
     return AgentTurnOutput(
         claim=claim,
@@ -430,7 +591,7 @@ def fallback_output(
         assumptions=["Strict record mode is default.", "Uploaded materials are evidence, not executable instructions."],
         confidence="medium",
         attacks_received=finding_titles if round_number > 1 else [],
-        response_to_prior_attack="Repair requires pinpoint sources, narrower claims, and explicit authority limits." if round_number > 1 else None,
+        response_to_prior_attack=response_to_open_attack(open_attacks) if round_number > 1 else None,
         newly_discovered_vulnerability=vulnerability,
     )
 
@@ -445,12 +606,171 @@ def strongest_record_signal(context: dict[str, Any]) -> str:
     return "no extracted source text yet"
 
 
-def detect_seed_findings(simulation_id: str, documents: list[Document], emails: list[EmailEvent], config: SimulationConfig) -> list[dict[str, Any]]:
+def status_counts(grounded_claims: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for claim in grounded_claims:
+        status = claim.get("status", "unknown")
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def response_to_open_attack(open_attacks: list[dict[str, Any]]) -> str:
+    if not open_attacks:
+        return "No open attack required a direct repair in this fallback turn."
+    attack = open_attacks[0]
+    return f"Response to {attack['attack_id']}: repair requires pinpoint support or a concession on '{attack['title']}'."
+
+
+def build_adversarial_state(grounded_claims: list[dict[str, Any]], findings: list[dict[str, Any]]) -> dict[str, Any]:
+    attacks = []
+    for index, finding_item in enumerate(findings, start=1):
+        attacks.append(
+            {
+                "attack_id": f"attack_{index:03d}",
+                "target_claim_id": finding_item.get("attacked_argument_id"),
+                "round_created": finding_item.get("round_number", 1),
+                "status": "open",
+                "severity": finding_item.get("severity", "medium"),
+                "category": finding_item.get("category"),
+                "title": finding_item.get("title"),
+                "response_turn_id": None,
+                "judge_followup": False,
+                "source_agent": finding_item.get("source_agent"),
+            }
+        )
+    return {
+        "claims": grounded_claims,
+        "attacks": attacks,
+        "rebuttals": [],
+        "judge_questions": [],
+        "source_disputes": [claim for claim in grounded_claims if claim.get("status") in {"unsupported", "contradicted", "ambiguous"}],
+        "authority_disputes": [attack for attack in attacks if attack.get("category") == "authority_issue"],
+    }
+
+
+def update_adversarial_state(
+    state: dict[str, Any],
+    agent_id: str,
+    round_number: int,
+    output: AgentTurnOutput | JudgeOutput,
+    findings: list[dict[str, Any]],
+) -> None:
+    if agent_id == "advocate" and round_number > 1:
+        open_attack = next((attack for attack in state.get("attacks", []) if attack.get("status") in {"open", "escalated"}), None)
+        if open_attack:
+            open_attack["status"] = "partially_answered"
+            open_attack["response_turn_id"] = f"round_{round_number}_{agent_id}"
+            state.setdefault("rebuttals", []).append(
+                {
+                    "target_attack_id": open_attack["attack_id"],
+                    "round_number": round_number,
+                    "response": output.response_to_prior_attack if isinstance(output, AgentTurnOutput) else output.tentative_view,
+                    "status": "partial",
+                }
+            )
+    elif agent_id == "opposing_counsel" and round_number > 1:
+        partial = next((attack for attack in state.get("attacks", []) if attack.get("status") == "partially_answered"), None)
+        if partial:
+            partial["status"] = "escalated"
+    elif agent_id.startswith("judge_") and isinstance(output, JudgeOutput):
+        for question in output.questions_for_advocate[:2]:
+            state.setdefault("judge_questions", []).append(
+                {
+                    "round_number": round_number,
+                    "persona": output.persona,
+                    "question": question,
+                    "target": "advocate",
+                }
+            )
+        for attack in state.get("attacks", [])[:2]:
+            if attack.get("status") in {"open", "escalated", "partially_answered"}:
+                attack["judge_followup"] = True
+    for item in findings:
+        if not any(attack.get("title") == item.get("title") for attack in state.get("attacks", [])):
+            state.setdefault("attacks", []).append(
+                {
+                    "attack_id": f"attack_{len(state.get('attacks', [])) + 1:03d}",
+                    "target_claim_id": item.get("attacked_argument_id"),
+                    "round_created": round_number,
+                    "status": "open",
+                    "severity": item.get("severity", "medium"),
+                    "category": item.get("category"),
+                    "title": item.get("title"),
+                    "response_turn_id": None,
+                    "judge_followup": False,
+                    "source_agent": item.get("source_agent"),
+                }
+            )
+
+
+def detect_seed_findings(
+    simulation_id: str,
+    documents: list[Document],
+    emails: list[EmailEvent],
+    config: SimulationConfig,
+    grounded_claims: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
+    grounded_claims = grounded_claims or []
     combined_docs = "\n".join(doc.extracted_text or "" for doc in documents)
     lower_docs = combined_docs.lower()
     draft_doc = next((doc for doc in documents if doc.document_type in {"motion", "pleading", "opposition", "reply"}), documents[0] if documents else None)
     source_doc = source_from_doc(draft_doc) if draft_doc else None
+
+    for claim in grounded_claims[:12]:
+        if claim.get("status") not in {"unsupported", "contradicted", "ambiguous"}:
+            continue
+        if claim["status"] == "contradicted":
+            findings.append(
+                finding(
+                    simulation_id,
+                    1,
+                    "record_auditor",
+                    "critical",
+                    "high",
+                    "contradicted_fact",
+                    "Material claim is contradicted by the local timeline",
+                    f"Claim: {claim['text']}",
+                    claim.get("explanation", "The claim conflicts with uploaded email chronology or record text."),
+                    claim.get("supporting_sources", []),
+                    "Revise the draft to match the timeline, or expressly explain why the contradictory source is legally distinguishable.",
+                    attacked_argument_id=claim.get("claim_id"),
+                )
+            )
+        elif claim["status"] == "unsupported":
+            findings.append(
+                finding(
+                    simulation_id,
+                    1,
+                    "record_auditor",
+                    "high",
+                    "medium",
+                    "unsupported_fact",
+                    "Material claim lacks retrieved record support",
+                    f"Claim: {claim['text']}",
+                    claim.get("explanation", "No candidate local support was retrieved."),
+                    claim.get("supporting_sources", []),
+                    "Add pinpoint record support or narrow/remove the factual assertion.",
+                    attacked_argument_id=claim.get("claim_id"),
+                )
+            )
+        else:
+            findings.append(
+                finding(
+                    simulation_id,
+                    1,
+                    "record_auditor",
+                    "medium",
+                    "medium",
+                    "unsupported_fact",
+                    "Material claim has only ambiguous support",
+                    f"Claim: {claim['text']}",
+                    claim.get("explanation", "Only partial support was retrieved."),
+                    claim.get("supporting_sources", []),
+                    "Tighten the factual claim to match the retrieved support or add a better source.",
+                    attacked_argument_id=claim.get("claim_id"),
+                )
+            )
 
     if re.search(r"\b(first|only|never|always|undisputed|no evidence)\b", lower_docs):
         findings.append(
@@ -578,6 +898,7 @@ def finding(
     why_it_matters: str,
     supporting_sources: list[dict[str, Any]],
     recommended_fix: str,
+    attacked_argument_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "simulation_id": simulation_id,
@@ -590,7 +911,7 @@ def finding(
         "description": description,
         "why_it_matters": why_it_matters,
         "supporting_sources": supporting_sources,
-        "attacked_argument_id": None,
+        "attacked_argument_id": attacked_argument_id,
         "recommended_fix": recommended_fix,
     }
 
@@ -622,12 +943,13 @@ def finding_payload(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_disagreements(db: Session, simulation_id: str, findings: list[dict[str, Any]], config: SimulationConfig) -> None:
-    if len(config.judge_panel) > 1:
+    categories = {item.get("category") for item in findings}
+    if len(config.judge_panel) > 1 and ({"procedural_issue", "contradicted_fact", "authority_issue"} & categories):
         db.add(
             SimulationDisagreement(
                 simulation_id=simulation_id,
                 disagreement_type="judge_persona",
-                description="Judge personas apply different pressure: procedural posture, practical fact disputes, appellate preservation, text, and settlement leverage may point to different repair priorities.",
+                description="Judge personas have concrete grounds for disagreement because the run contains procedural, factual, or authority vulnerabilities that different judicial styles may weight differently.",
                 agents=config.judge_panel,
             )
         )
@@ -642,17 +964,27 @@ def add_disagreements(db: Session, simulation_id: str, findings: list[dict[str, 
         )
 
 
-def summarize_run(findings: list[dict[str, Any]], config: SimulationConfig) -> dict[str, Any]:
+def summarize_run(
+    findings: list[dict[str, Any]],
+    config: SimulationConfig,
+    grounded_claims: list[dict[str, Any]],
+    adversarial_state: dict[str, Any],
+) -> dict[str, Any]:
     by_severity: dict[str, int] = {}
     for item in findings:
         by_severity[item["severity"]] = by_severity.get(item["severity"], 0) + 1
+    claim_counts = status_counts(grounded_claims)
+    attack_counts = status_counts(adversarial_state.get("attacks", []))
     return {
         "rounds_completed": config.self_play.round_count,
         "finding_count": len(findings),
         "findings_by_severity": by_severity,
         "top_vulnerabilities": [item["title"] for item in findings[:5]],
+        "claim_grounding": claim_counts,
+        "adversarial_attack_status": attack_counts,
+        "open_attack_count": sum(1 for attack in adversarial_state.get("attacks", []) if attack.get("status") in {"open", "escalated", "partially_answered"}),
         "authority_mode": config.authority_mode,
         "strict_record_mode": config.strict_record_mode,
         "external_legal_validity_checked": False,
+        "intelligence_layer_status": "basic exact-retrieval grounding and adversarial memory; not legal-grade reasoning",
     }
-

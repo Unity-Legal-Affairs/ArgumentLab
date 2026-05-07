@@ -42,6 +42,11 @@ def get_transcript(simulation_id: str, db: Session = Depends(get_db)) -> list[di
             "turn_number": turn.turn_number,
             "agent_name": turn.agent_role,
             "model": f"{turn.model_provider}/{turn.model_name}",
+            "model_requested": turn.model_requested,
+            "model_used": turn.model_used,
+            "provider_status": turn.provider_status,
+            "schema_validated": turn.schema_validated,
+            "error": turn.error,
             "output": turn.output,
             "sources_cited": turn.sources_cited,
             "new_findings": turn.new_findings,
@@ -74,4 +79,3 @@ def load_detail(db: Session, simulation_id: str) -> SimulationDetail:
     detail.findings = findings
     detail.judge_evaluations = judges
     return detail
-

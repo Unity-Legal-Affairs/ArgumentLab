@@ -67,6 +67,7 @@ export function ModelRouting() {
           <div>
             <h2 className="text-lg font-semibold">Settings → Model Routing</h2>
             <p className="mt-1 text-sm text-sage">Visible provider registry, agent assignments, run diagnostics, and local LLM routing.</p>
+            <p className="mt-1 text-xs text-risk">Local prototype note: provider secrets are stored in the local SQLite database. Use development keys only. OpenAI OAuth is a provider placeholder until a PKCE flow is implemented.</p>
           </div>
           <Button variant="secondary" onClick={() => setEditing(blankProvider)}>
             <Plus size={16} />
@@ -305,4 +306,3 @@ function normalizeProviderPayload(editing: Partial<Provider> & { api_key?: strin
     enabled: editing.enabled ?? true
   };
 }
-

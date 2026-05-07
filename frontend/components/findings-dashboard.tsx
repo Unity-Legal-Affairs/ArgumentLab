@@ -149,7 +149,7 @@ function JudgeViews({ judges }: { judges: Array<{ id: string; persona: string; o
   );
 }
 
-function Transcript({ turns }: { turns: Array<{ id: string; round_number: number; turn_number: number; agent_role: string; model_provider?: string | null; model_name?: string | null; output: Record<string, unknown> }> }) {
+function Transcript({ turns }: { turns: Array<{ id: string; round_number: number; turn_number: number; agent_role: string; model_provider?: string | null; model_name?: string | null; model_requested?: string | null; model_used?: string | null; provider_status?: string; schema_validated?: boolean; error?: string | null; output: Record<string, unknown> }> }) {
   return (
     <section className="rounded-md border border-line bg-panel p-5 shadow-warroom">
       <div className="space-y-3">
@@ -159,8 +159,9 @@ function Transcript({ turns }: { turns: Array<{ id: string; round_number: number
               Round {turn.round_number}, Turn {turn.turn_number}: {turn.agent_role}
             </div>
             <div className="mt-1 text-xs text-sage">
-              {turn.model_provider}/{turn.model_name}
+              requested {turn.model_requested ?? `${turn.model_provider}/${turn.model_name}`} | used {turn.model_used ?? "unknown"} | {turn.provider_status ?? "unknown"} | schema {turn.schema_validated ? "valid" : "failed"}
             </div>
+            {turn.error ? <div className="mt-2 rounded-sm bg-[#f7e5df] px-2 py-1 text-xs text-risk">{turn.error}</div> : null}
             <p className="mt-2 leading-6">{String(turn.output.claim ?? turn.output.tentative_view ?? "")}</p>
           </article>
         ))}
@@ -168,4 +169,3 @@ function Transcript({ turns }: { turns: Array<{ id: string; round_number: number
     </section>
   );
 }
-

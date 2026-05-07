@@ -3,6 +3,14 @@
   "name": "Summary judgment packet with disputed fact",
   "description": "Draft calls facts undisputed despite record excerpts showing a factual dispute.",
   "planted_issues": ["unsupported_fact", "contradicted_fact", "judge_persona_disagreement"],
+  "expected_findings": [
+    {
+      "category": "unsupported_fact",
+      "must_detect": true,
+      "title_contains": "support",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "summary_judgment",
     "jurisdiction": "Texas",
@@ -22,4 +30,3 @@
   ],
   "emails": []
 }
-

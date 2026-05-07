@@ -3,6 +3,20 @@
   "name": "Contract breach with email timeline contradiction",
   "description": "Draft says defendant first objected after termination, but an earlier email objects before termination.",
   "planted_issues": ["contradicted_fact", "email_chronology_issue", "unsupported_fact"],
+  "expected_findings": [
+    {
+      "category": "contradicted_fact",
+      "must_detect": true,
+      "source_email_contains": "we object to the invoice",
+      "severity": "critical"
+    },
+    {
+      "category": "email_chronology_issue",
+      "must_detect": true,
+      "source_email_contains": "reserve all rights",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "summary_judgment",
     "jurisdiction": "New York",
@@ -27,4 +41,3 @@
     }
   ]
 }
-

@@ -3,6 +3,14 @@
   "name": "Citation hallucination trap",
   "description": "Draft cites cases but no uploaded authority supports the propositions.",
   "planted_issues": ["authority_issue", "citation_not_found", "external_validity_not_checked"],
+  "expected_findings": [
+    {
+      "category": "authority_issue",
+      "must_detect": true,
+      "title_contains": "authority",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "New York",
@@ -17,4 +25,3 @@
   ],
   "emails": []
 }
-

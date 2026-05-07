@@ -117,6 +117,11 @@ export type SimulationTurn = {
   agent_role: string;
   model_provider?: string | null;
   model_name?: string | null;
+  model_requested?: string | null;
+  model_used?: string | null;
+  provider_status: string;
+  schema_validated: boolean;
+  error?: string | null;
   input_refs: Array<Record<string, unknown>>;
   output: Record<string, unknown>;
   claims_made: Array<Record<string, unknown>>;
@@ -175,4 +180,3 @@ export type BenchmarkPacket = {
   planted_issues: string[];
   description: string;
 };
-

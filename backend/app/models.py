@@ -152,6 +152,11 @@ class SimulationTurn(Base):
     agent_role: Mapped[str] = mapped_column(String(120), nullable=False)
     model_provider: Mapped[str | None] = mapped_column(String(120))
     model_name: Mapped[str | None] = mapped_column(String(200))
+    model_requested: Mapped[str | None] = mapped_column(String(300))
+    model_used: Mapped[str | None] = mapped_column(String(300))
+    provider_status: Mapped[str] = mapped_column(String(64), default="unknown", nullable=False)
+    schema_validated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text)
     input_refs: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     output: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     claims_made: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
@@ -232,4 +237,3 @@ class Export(Base):
     export_type: Mapped[str] = mapped_column(String(80), default="markdown", nullable=False)
     storage_path: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-

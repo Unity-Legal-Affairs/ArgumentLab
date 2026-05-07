@@ -3,6 +3,14 @@
   "name": "Misquoted contract clause",
   "description": "Draft states the contract says notice is optional, but uploaded clause says written notice is required.",
   "planted_issues": ["misquoted_clause", "contradicted_fact", "textualist_concern"],
+  "expected_findings": [
+    {
+      "category": "unsupported_fact",
+      "must_detect": true,
+      "title_contains": "support",
+      "severity": "high"
+    }
+  ],
   "simulation_config": {
     "procedural_posture": "motion_to_dismiss",
     "jurisdiction": "New York",
@@ -23,4 +31,3 @@
   ],
   "emails": []
 }
-
