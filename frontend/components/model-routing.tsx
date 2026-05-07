@@ -21,7 +21,7 @@ const authMethods = ["none", "api_key", "bearer_token", "dummy"];
 const blankProvider = {
   display_name: "",
   provider_type: "local_openai_compatible",
-  base_url: "http://localhost:8000",
+  base_url: "",
   model_name: "",
   auth_method: "dummy",
   api_key: "",
@@ -103,7 +103,7 @@ export function ModelRouting() {
               </Select>
             </Field>
             <Field label="Base URL">
-              <Input value={editing.base_url ?? ""} onChange={(event) => setEditing({ ...editing, base_url: event.target.value })} placeholder="http://localhost:8000" />
+              <Input value={editing.base_url ?? ""} onChange={(event) => setEditing({ ...editing, base_url: event.target.value })} placeholder="http://localhost:1234/v1 or http://localhost:8001/v1" />
             </Field>
             <Field label="Model name">
               <Input value={editing.model_name ?? ""} onChange={(event) => setEditing({ ...editing, model_name: event.target.value })} placeholder="Optional for local endpoints with a server default" />

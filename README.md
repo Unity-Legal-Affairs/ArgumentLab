@@ -97,7 +97,7 @@ Local LLM example:
 ```json
 {
   "provider": "local_openai_compatible",
-  "base_url": "http://localhost:8000",
+  "base_url": "http://localhost:1234/v1",
   "model": "",
   "api_key": "optional",
   "supports_structured_output": true,
@@ -107,7 +107,7 @@ Local LLM example:
 }
 ```
 
-For local OpenAI-compatible servers such as vLLM or LM Studio, `model` may be left blank when the server has a default model route. If the endpoint requires a model value, the provider diagnostic will fail and show the error.
+For local OpenAI-compatible servers such as vLLM or LM Studio, `model` may be left blank when the server has a default model route. If the endpoint requires a model value, the provider diagnostic will fail and show the error. Use whatever base URL your model server displays; if Argument Lab is running its backend on port `8000`, run the model server on another port or start the Argument Lab backend on a different port.
 
 ## Self-Play Engine
 
